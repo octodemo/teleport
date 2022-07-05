@@ -58,6 +58,8 @@ type TLSServerConfig struct {
 	ConnectedProxyGetter *reversetunnel.ConnectedProxyGetter
 	// Log is the logger.
 	Log log.FieldLogger
+	// AWSMatcher are used to match EKS clusters.
+	AWSMatchers []services.AWSMatcher
 }
 
 // CheckAndSetDefaults checks and sets default values
