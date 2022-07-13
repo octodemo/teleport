@@ -44,6 +44,7 @@ func main() {
 		&common.InventoryCommand{},
 		&common.RecordingsCommand{},
 		&common.AlertCommand{},
+		&common.ProxyCommand{},
 	}
 	common.Run(commands)
 }
