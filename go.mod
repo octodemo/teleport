@@ -15,7 +15,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.17.0
 	github.com/aquasecurity/libbpfgo v0.2.5-libbpf-0.7.0
 	github.com/armon/go-radix v1.0.0
-	github.com/aws/aws-sdk-go v1.43.15
+	github.com/aws/aws-sdk-go v1.43.28
 	github.com/aws/aws-sdk-go-v2 v1.11.0
 	github.com/aws/aws-sdk-go-v2/config v1.10.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.6.1
@@ -129,6 +129,7 @@ require (
 	k8s.io/cli-runtime v0.24.0
 	k8s.io/client-go v0.24.2
 	k8s.io/kubectl v0.24.0
+	sigs.k8s.io/aws-iam-authenticator v0.5.9
 	sigs.k8s.io/controller-runtime v0.12.3
 	sigs.k8s.io/controller-tools v0.9.2
 )
@@ -194,6 +195,7 @@ require (
 	github.com/go-openapi/jsonreference v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.14 // indirect
 	github.com/gobuffalo/flect v0.2.5
+	github.com/gofrs/flock v0.7.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe // indirect
 	github.com/golang-sql/sqlexp v0.0.0-20170517235910-f1bb20e5a188 // indirect
@@ -318,4 +320,7 @@ replace (
 	github.com/russellhaering/gosaml2 => github.com/gravitational/gosaml2 v0.0.0-20220318224559-f06932032ae2
 	github.com/sirupsen/logrus => github.com/gravitational/logrus v1.4.4-0.20210817004754-047e20245621
 	github.com/vulcand/predicate => github.com/gravitational/predicate v1.2.1
+	// REMOVE before merging and after https://github.com/kubernetes-sigs/aws-iam-authenticator/pull/474 is merged
+	// otherwise we need to revert kube client to 0.24.2 which will break the operator.
+	sigs.k8s.io/aws-iam-authenticator => github.com/fengshunli/aws-iam-authenticator v0.5.8-0.20220719090955-bc28918e01f1
 )
