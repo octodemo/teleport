@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/gravitational/teleport"
 	apidefaults "github.com/gravitational/teleport/api/defaults"
 	"github.com/gravitational/teleport/api/types"
@@ -155,7 +154,15 @@ func NewTLSServer(cfg TLSServerConfig) (*TLSServer, error) {
 		heartbeats: make(map[string]*srv.Heartbeat),
 	}
 	if len(cfg.AWSMatchers) > 0 && cfg.KubeServiceType == KubeService {
-		if server.watcher, err = watcher.NewWatcher(fwd.ctx, cfg.AWSMatchers, cfg.CloudClients, server.dynamicKubediscoveryAction, server.Log); err != nil {
+		if server.watcher, err = watcher.NewWatcher(
+			fwd.ctx,
+			watcher.Config{
+				AWSMatchers:  cfg.AWSMatchers,
+				CloudClients: cfg.CloudClients,
+				Action:       server.dynamicKubediscoveryAction,
+				Log:          server.Log,
+			},
+		); err != nil {
 			return nil, trace.Wrap(err)
 		}
 	}
@@ -352,34 +359,35 @@ func (t *TLSServer) startStaticClustersHeartbeat() error {
 	} else {
 		log.Debug("No local kube credentials on proxy, will not start kubernetes_service heartbeats")
 	}
+	return nil
 }
 
-func (t *TLSServer) dynamicKubediscoveryAction(ctx context.Context, operation watcher.Operation, cluster *eks.Cluster) {
+func (t *TLSServer) dynamicKubediscoveryAction(ctx context.Context, operation watcher.Operation, cluster watcher.Cluster) {
 	switch operation {
 	case watcher.OperationCreate:
 		if err := t.addServer(ctx, cluster); err != nil {
-			t.Log.Warnf("unable to add cluster %s: %v", *cluster.Name)
+			t.Log.Warnf("unable to add cluster %s: %v", cluster.GetName())
 		}
 	case watcher.OperationUpdate:
 		if err := t.updateServer(cluster); err != nil {
-			t.Log.Warnf("unable to update cluster %s: %v", *cluster.Name)
+			t.Log.Warnf("unable to update cluster %s: %v", cluster.GetName())
 		}
 	case watcher.OperationDelete:
-		if err := t.stopServer(ctx, *cluster.Name); err != nil {
-			t.Log.Warnf("unable to remove cluster %s: %v", *cluster.Name)
+		if err := t.stopServer(ctx, cluster.GetName()); err != nil {
+			t.Log.Warnf("unable to remove cluster %s: %v", cluster.GetName())
 		}
 	}
 
 }
 
-func (t *TLSServer) addServer(ctx context.Context, cluster *eks.Cluster) error {
+func (t *TLSServer) addServer(ctx context.Context, cluster watcher.Cluster) error {
 	if err := t.fwd.addKubeCluster(cluster); err != nil {
 		return trace.Wrap(err)
 	}
-	return trace.Wrap(t.startHeartbeat(ctx, *cluster.Name))
+	return trace.Wrap(t.startHeartbeat(ctx, cluster.GetName()))
 }
 
-func (t *TLSServer) updateServer(cluster *eks.Cluster) error {
+func (t *TLSServer) updateServer(cluster watcher.Cluster) error {
 	return trace.Wrap(t.fwd.updateKubeCluster(cluster))
 }
 
@@ -388,10 +396,7 @@ func (t *TLSServer) stopServer(ctx context.Context, name string) error {
 		//TODO: add logging here
 	}
 	errHeart := t.stopHeartbeat(name)
-	fmt.Println("stoped heartbeat")
-
 	errRemove := t.fwd.removeKubeCluster(name)
-	fmt.Println("r heartbeat")
 	return trace.NewAggregate(errHeart, errRemove)
 }
 

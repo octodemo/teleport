@@ -17,15 +17,19 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/gravitational/teleport/lib/services"
 	"github.com/gravitational/teleport/lib/srv/db/common"
 	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
 )
 
-type Action func(context.Context, Operation, *eks.Cluster)
-
+// Cpmf
+type Config struct {
+	AWSMatchers  []services.AWSMatcher
+	CloudClients common.CloudClients
+	Action       ActionFunc
+	Log          logrus.FieldLogger
+}
 type Watcher struct {
 	fetchers []fetcher
 	waitTime time.Duration
@@ -35,10 +39,7 @@ type Watcher struct {
 
 func NewWatcher(
 	ctx context.Context,
-	matchers []services.AWSMatcher,
-	clients common.CloudClients,
-	action Action,
-	log logrus.FieldLogger,
+	cfg Config,
 ) (*Watcher, error) {
 	cancelCtx, cancelFn := context.WithCancel(ctx)
 	watcher := Watcher{
@@ -47,13 +48,18 @@ func NewWatcher(
 		cancel:   cancelFn,
 		waitTime: time.Minute,
 	}
-	for _, matcher := range matchers {
+	for _, matcher := range cfg.AWSMatchers {
 		for _, region := range matcher.Regions {
-			cl, err := clients.GetAWSEKSClient(region)
+			awsSession, err := cfg.CloudClients.GetAWSSession(region)
 			if err != nil {
 				return nil, trace.Wrap(err)
 			}
-			fetcher, err := newEKSClusterFetcher(matcher, region, cl, action, log)
+			cl, err := cfg.CloudClients.GetAWSEKSClient(region)
+			if err != nil {
+				return nil, trace.Wrap(err)
+			}
+
+			fetcher, err := newEKSClusterFetcher(matcher, region, awsSession, cl, cfg.Action, cfg.Log)
 			if err != nil {
 				return nil, trace.Wrap(err)
 			}

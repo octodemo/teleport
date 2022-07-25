@@ -19,17 +19,16 @@ package proxy
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/gravitational/teleport/api/types"
+	"github.com/gravitational/teleport/lib/kube/watcher"
 	"github.com/gravitational/trace"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/maps"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
@@ -56,36 +55,51 @@ func (f *Forwarder) removeKubeCluster(name string) error {
 	return trace.NewAggregate(errs...)
 }
 
-func (f *Forwarder) addKubeCluster(cluster *eks.Cluster) error {
-	dyn, err := newDynamicCreds(cluster, f.getStaticLabels(), f.log)
+func (f *Forwarder) addKubeCluster(cluster watcher.Cluster) error {
+	var (
+		dynKubeCreds kubeCreds
+		err          error
+	)
+
+	switch t := cluster.(type) {
+	case *watcher.EKSCluster:
+		dynKubeCreds, err = newEKSDynamicCreds(t, f.getStaticLabels(), f.log)
+	default:
+		return fmt.Errorf("unknown type for cluster: %T", cluster)
+	}
 	if err != nil {
 		return trace.Wrap(err)
 	}
 	f.rwMutexCreds.Lock()
-	f.creds[*cluster.Name] = dyn
+	f.creds[cluster.GetName()] = dynKubeCreds
 	f.rwMutexCreds.Unlock()
 
 	return nil
 }
 
-func (f *Forwarder) updateKubeCluster(cluster *eks.Cluster) error {
+func (f *Forwarder) updateKubeCluster(cluster watcher.Cluster) error {
 	f.rwMutexCreds.Lock()
-	creds, ok := f.creds[*cluster.Name]
+	creds, ok := f.creds[cluster.GetName()]
 	if !ok {
-		return fmt.Errorf("cluster %s not found", *cluster.Name)
+		return fmt.Errorf("cluster %s not found", cluster.GetName())
 	}
 	f.rwMutexCreds.Unlock()
 
-	dynCreds, ok := creds.(*dynamicKubeCreds)
-	if !ok {
-		return fmt.Errorf("creds is not *dynamicKubeCreds, instead it is %T", dynCreds)
+	switch t := cluster.(type) {
+	case *watcher.EKSCluster:
+		dynCreds, ok := creds.(*eksDynamicCreds)
+		if !ok {
+			return fmt.Errorf("creds is not *eksDynamicCreds, instead it is %T", dynCreds)
+		}
+		return trace.Wrap(dynCreds.updateCluster(t))
+	default:
+		return fmt.Errorf("unknown type for cluster: %T", cluster)
 	}
-	return trace.Wrap(dynCreds.updateCluster(cluster))
 
 }
 
-func newDynamicCreds(cluster *eks.Cluster, staticLabels map[string]string, log logrus.FieldLogger) (*dynamicKubeCreds, error) {
-	dn := &dynamicKubeCreds{
+func newEKSDynamicCreds(cluster *watcher.EKSCluster, staticLabels map[string]string, log logrus.FieldLogger) (*eksDynamicCreds, error) {
+	dn := &eksDynamicCreds{
 		eksCluster:          cluster,
 		renewTicker:         time.NewTicker(1 * time.Hour), // this will be reseted by renewClientset
 		closeC:              make(chan struct{}),
@@ -112,8 +126,8 @@ func newDynamicCreds(cluster *eks.Cluster, staticLabels map[string]string, log l
 	return dn, nil
 }
 
-type dynamicKubeCreds struct {
-	eksCluster          *eks.Cluster
+type eksDynamicCreds struct {
+	eksCluster          *watcher.EKSCluster
 	renewTicker         *time.Ticker
 	st                  *staticKubeCreds
 	serviceStaticLabels map[string]string
@@ -122,7 +136,7 @@ type dynamicKubeCreds struct {
 	closeC chan struct{}
 }
 
-func (c *dynamicKubeCreds) close() error {
+func (c *eksDynamicCreds) close() error {
 	c.Lock()
 	defer c.Unlock()
 	c.closeC <- struct{}{}
@@ -130,70 +144,68 @@ func (c *dynamicKubeCreds) close() error {
 	return nil
 }
 
-func (d *dynamicKubeCreds) tlsConfiguration() *tls.Config {
+func (d *eksDynamicCreds) tlsConfiguration() *tls.Config {
 	d.RLock()
 	defer d.RUnlock()
 	return d.st.tlsConfig
 }
-func (d *dynamicKubeCreds) transportConfiguration() *transport.Config {
+func (d *eksDynamicCreds) transportConfiguration() *transport.Config {
 	d.RLock()
 	defer d.RUnlock()
 	return d.st.transportConfig
 }
-func (d *dynamicKubeCreds) targetAddress() string {
+func (d *eksDynamicCreds) targetAddress() string {
 	d.RLock()
 	defer d.RUnlock()
 	return d.st.targetAddr
 }
-func (d *dynamicKubeCreds) kubernetesClient() *kubernetes.Clientset {
+func (d *eksDynamicCreds) kubernetesClient() *kubernetes.Clientset {
 	d.RLock()
 	defer d.RUnlock()
 	return d.st.kubeClient
 }
-func (d *dynamicKubeCreds) wrapTransport(rt http.RoundTripper) (http.RoundTripper, error) {
+func (d *eksDynamicCreds) wrapTransport(rt http.RoundTripper) (http.RoundTripper, error) {
 	d.RLock()
 	defer d.RUnlock()
 	return d.st.wrapTransport(rt)
 }
 
-func (d *dynamicKubeCreds) getStaticLabels() map[string]string {
+func (d *eksDynamicCreds) getStaticLabels() map[string]string {
 	d.RLock()
 	defer d.RUnlock()
 	return d.st.staticLabels
 }
 
-func (d *dynamicKubeCreds) updateCluster(cluster *eks.Cluster) error {
+func (d *eksDynamicCreds) updateCluster(cluster *watcher.EKSCluster) error {
 	d.RLock()
 	d.eksCluster = cluster
 	d.RUnlock()
 	return trace.Wrap(d.renewClientset())
 }
 
-func (d *dynamicKubeCreds) renewClientset() error {
+func (d *eksDynamicCreds) renewClientset() error {
 	gen, err := token.NewGenerator(true, false)
 	if err != nil {
 		return trace.Wrap(err)
 	}
+
 	opts := &token.GetTokenOptions{
-		ClusterID: aws.StringValue(d.eksCluster.Name),
+		ClusterID: d.eksCluster.Name,
+		Session:   d.eksCluster.AWSSession,
 	}
 	tok, err := gen.GetWithOptions(opts)
-	if err != nil {
-		return trace.Wrap(err)
-	}
-	ca, err := base64.StdEncoding.DecodeString(aws.StringValue(d.eksCluster.CertificateAuthority.Data))
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
 	creds, err := extractKubeCreds(
 		context.TODO(),
-		*d.eksCluster.Name,
+		d.eksCluster.Name,
 		&rest.Config{
-			Host:        aws.StringValue(d.eksCluster.Endpoint),
+			Host:        d.eksCluster.APIEndpoint,
 			BearerToken: tok.Token,
 			TLSClientConfig: rest.TLSClientConfig{
-				CAData: ca,
+				CAData: d.eksCluster.CAData,
 			},
 		},
 		KubeService,
@@ -214,23 +226,12 @@ func (d *dynamicKubeCreds) renewClientset() error {
 	return nil
 }
 
-func (d *dynamicKubeCreds) genStaticLabelsFromEKS() {
-	labels := d.eksTagsToLabels(d.eksCluster.Tags)
+func (d *eksDynamicCreds) genStaticLabelsFromEKS() {
+	labels := map[string]string{}
+	maps.Copy(labels, d.eksCluster.Labels)
 	for k, v := range d.serviceStaticLabels {
 		labels[k] = v
 	}
 	labels[types.OriginLabel] = types.OriginCloud
 	d.st.staticLabels = labels
-}
-func (d *dynamicKubeCreds) eksTagsToLabels(tags map[string]*string) map[string]string {
-	labels := make(map[string]string)
-	for key, valuePtr := range tags {
-		if types.IsValidLabelKey(key) {
-			labels[key] = aws.StringValue(valuePtr)
-		} else {
-			//f.log.Debugf("Skipping EKS tag %q, not a valid label key", key)
-			// TODO: log here
-		}
-	}
-	return labels
 }
