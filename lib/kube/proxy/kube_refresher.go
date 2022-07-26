@@ -144,22 +144,22 @@ func (c *eksDynamicCreds) close() error {
 	return nil
 }
 
-func (d *eksDynamicCreds) tlsConfiguration() *tls.Config {
+func (d *eksDynamicCreds) getTLSConfig() *tls.Config {
 	d.RLock()
 	defer d.RUnlock()
 	return d.st.tlsConfig
 }
-func (d *eksDynamicCreds) transportConfiguration() *transport.Config {
+func (d *eksDynamicCreds) getTransportConfig() *transport.Config {
 	d.RLock()
 	defer d.RUnlock()
 	return d.st.transportConfig
 }
-func (d *eksDynamicCreds) targetAddress() string {
+func (d *eksDynamicCreds) getTargetAddr() string {
 	d.RLock()
 	defer d.RUnlock()
 	return d.st.targetAddr
 }
-func (d *eksDynamicCreds) kubernetesClient() *kubernetes.Clientset {
+func (d *eksDynamicCreds) getKubeClient() *kubernetes.Clientset {
 	d.RLock()
 	defer d.RUnlock()
 	return d.st.kubeClient
@@ -198,7 +198,7 @@ func (d *eksDynamicCreds) renewClientset() error {
 		return trace.Wrap(err)
 	}
 
-	creds, err := extractKubeCreds(
+	creds, err := newStaticKubeCreds(
 		context.TODO(),
 		d.eksCluster.Name,
 		&rest.Config{
@@ -208,11 +208,7 @@ func (d *eksDynamicCreds) renewClientset() error {
 				CAData: d.eksCluster.CAData,
 			},
 		},
-		KubeService,
-		"",
-		d.log,
 		checkImpersonationPermissions,
-		nil,
 	)
 	if err != nil {
 		return trace.Wrap(err)

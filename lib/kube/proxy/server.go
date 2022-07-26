@@ -153,6 +153,7 @@ func NewTLSServer(cfg TLSServerConfig) (*TLSServer, error) {
 		},
 		heartbeats: make(map[string]*srv.Heartbeat),
 	}
+
 	if len(cfg.AWSMatchers) > 0 && cfg.KubeServiceType == KubeService {
 		if server.watcher, err = watcher.NewWatcher(
 			fwd.ctx,
@@ -392,12 +393,10 @@ func (t *TLSServer) updateServer(cluster watcher.Cluster) error {
 }
 
 func (t *TLSServer) stopServer(ctx context.Context, name string) error {
-	if err := t.deleteKubernetesServer(ctx, name); err != nil {
-		//TODO: add logging here
-	}
 	errHeart := t.stopHeartbeat(name)
 	errRemove := t.fwd.removeKubeCluster(name)
-	return trace.NewAggregate(errHeart, errRemove)
+	errAPIRm := t.deleteKubernetesServer(ctx, name)
+	return trace.NewAggregate(errHeart, errRemove, errAPIRm)
 }
 
 // deleteKubernetesServer deletes kubernetes server for the specified cluster.

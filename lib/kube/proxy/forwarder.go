@@ -1365,7 +1365,7 @@ func (f *Forwarder) setupForwardingHeaders(sess *clusterSession, req *http.Reque
 	// TODO(smallinsky) UPDATE IN 11.0. use KubeTeleportProxyALPNPrefix instead.
 	req.URL.Host = fmt.Sprintf("%s%s", constants.KubeSNIPrefix, constants.APIDomain)
 	if sess.creds != nil {
-		req.URL.Host = sess.creds.targetAddress()
+		req.URL.Host = sess.creds.getTargetAddr()
 	}
 
 	// add origin headers so the service consuming the request on the other site
@@ -1756,8 +1756,8 @@ func (f *Forwarder) newClusterSessionLocal(ctx authContext) (*clusterSession, er
 		parent:               f,
 		authContext:          ctx,
 		creds:                creds,
-		kubeClusterEndpoints: []kubeClusterEndpoint{{addr: creds.targetAddress()}},
-		tlsConfig:            creds.tlsConfiguration(),
+		kubeClusterEndpoints: []kubeClusterEndpoint{{addr: creds.getTargetAddr()}},
+		tlsConfig:            creds.getTLSConfig(),
 	}, nil
 }
 
@@ -2027,7 +2027,6 @@ func (f *Forwarder) kubeClusters() []*types.KubernetesClusterV3 {
 	f.rwMutexCreds.RLock()
 	defer f.rwMutexCreds.RUnlock()
 	for n, creds := range f.creds {
-
 		cluster, err := newKubeCluster(n, creds, dynLabels)
 		if err != nil {
 			f.log.WithError(err).Warnf("Error while creating *types.KubernetesClusterV3 for cluster %q", n)

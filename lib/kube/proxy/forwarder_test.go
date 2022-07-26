@@ -65,7 +65,7 @@ var (
 		Usage:            []string{"usage a", "usage b"},
 		Principals:       []string{"principal a", "principal b"},
 		KubernetesGroups: []string{"remote k8s group a", "remote k8s group b"},
-		Traits:           map[string][]string{"trait a": []string{"b", "c"}},
+		Traits:           map[string][]string{"trait a": {"b", "c"}},
 	})
 	unmappedIdentity = auth.WrapIdentity(tlsca.Identity{
 		Username:         "bob",
@@ -73,7 +73,7 @@ var (
 		Usage:            []string{"usage a", "usage b"},
 		Principals:       []string{"principal a", "principal b"},
 		KubernetesGroups: []string{"k8s group a", "k8s group b"},
-		Traits:           map[string][]string{"trait a": []string{"b", "c"}},
+		Traits:           map[string][]string{"trait a": {"b", "c"}},
 	})
 )
 
@@ -736,11 +736,11 @@ func TestNewClusterSessionLocal(t *testing.T) {
 	authCtx.kubeCluster = "local"
 	sess, err := f.newClusterSession(authCtx)
 	require.NoError(t, err)
-	require.Equal(t, []kubeClusterEndpoint{{addr: f.creds["local"].targetAddress()}}, sess.kubeClusterEndpoints)
+	require.Equal(t, []kubeClusterEndpoint{{addr: f.creds["local"].getTargetAddr()}}, sess.kubeClusterEndpoints)
 
 	// Make sure newClusterSession used provided creds
 	// instead of requesting a Teleport client cert.
-	require.Equal(t, f.creds["local"].tlsConfiguration(), sess.tlsConfig)
+	require.Equal(t, f.creds["local"].getTLSConfig(), sess.tlsConfig)
 	require.Nil(t, f.cfg.AuthClient.(*mockCSRClient).lastCert)
 	require.Empty(t, 0, f.clientCredentials.Len())
 }
@@ -900,7 +900,7 @@ func TestKubeFwdHTTPProxyEnv(t *testing.T) {
 	authCtx.kubeCluster = "local"
 	sess, err := f.newClusterSession(authCtx)
 	require.NoError(t, err)
-	require.Equal(t, []kubeClusterEndpoint{{addr: f.creds["local"].targetAddress()}}, sess.kubeClusterEndpoints)
+	require.Equal(t, []kubeClusterEndpoint{{addr: f.creds["local"].getTargetAddr()}}, sess.kubeClusterEndpoints)
 
 	sess.tlsConfig.InsecureSkipVerify = true
 

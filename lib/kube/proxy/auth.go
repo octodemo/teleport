@@ -58,28 +58,37 @@ type staticKubeCreds struct {
 	staticLabels map[string]string
 }
 
-func (s *staticKubeCreds) tlsConfiguration() *tls.Config {
+func (s *staticKubeCreds) getTLSConfig() *tls.Config {
 	return s.tlsConfig
 }
-func (s *staticKubeCreds) transportConfiguration() *transport.Config {
+func (s *staticKubeCreds) getTransportConfig() *transport.Config {
 	return s.transportConfig
 }
-func (s *staticKubeCreds) targetAddress() string {
+func (s *staticKubeCreds) getTargetAddr() string {
 	return s.targetAddr
 }
-func (s *staticKubeCreds) kubernetesClient() *kubernetes.Clientset {
+func (s *staticKubeCreds) getKubeClient() *kubernetes.Clientset {
 	return s.kubeClient
 }
 
 func (s *staticKubeCreds) getStaticLabels() map[string]string {
 	return s.staticLabels
 }
+func (c *staticKubeCreds) wrapTransport(rt http.RoundTripper) (http.RoundTripper, error) {
+	if c == nil {
+		return rt, nil
+	}
+	return transport.HTTPWrappersForConfig(c.transportConfig, rt)
+}
+func (c *staticKubeCreds) close() error {
+	return nil
+}
 
 type kubeCreds interface {
-	tlsConfiguration() *tls.Config
-	transportConfiguration() *transport.Config
-	targetAddress() string
-	kubernetesClient() *kubernetes.Clientset
+	getTLSConfig() *tls.Config
+	getTransportConfig() *transport.Config
+	getTargetAddr() string
+	getKubeClient() *kubernetes.Clientset
 	wrapTransport(http.RoundTripper) (http.RoundTripper, error)
 	getStaticLabels() map[string]string
 	close() error
@@ -174,14 +183,9 @@ func extractKubeCreds(ctx context.Context, cluster string, clientCfg *rest.Confi
 	log = log.WithField("cluster", cluster)
 
 	log.Debug("Checking Kubernetes impersonation permissions.")
-	client, err := kubernetes.NewForConfig(clientCfg)
-	if err != nil {
-		return nil, trace.Wrap(err, "failed to generate Kubernetes client for cluster %q", cluster)
-	}
-
-	// For each loaded cluster, check impersonation permissions. This
-	// check only logs when permissions are not configured, but does not fail startup.
-	if err := checkPermissions(ctx, cluster, client.AuthorizationV1().SelfSubjectAccessReviews()); err != nil {
+	staticCreds, err := newStaticKubeCreds(ctx, cluster, clientCfg, checkPermissions)
+	// if error is IsAccessDenied we want to log it and discard the error since it's used for static credentials
+	if trace.IsAccessDenied(err) {
 		log.WithError(err).Warning("Failed to test the necessary Kubernetes permissions. The target Kubernetes cluster may be down or have misconfigured RBAC. This teleport instance will still handle Kubernetes requests towards this Kubernetes cluster.")
 		if serviceType != KubeService && kubeconfigPath != "" {
 			// We used to recommend users to set a dummy kubeconfig on root
@@ -192,8 +196,37 @@ func extractKubeCreds(ctx context.Context, cluster string, clientCfg *rest.Confi
 			// via logs.
 			log.Info("If this is a proxy and you provided a dummy kubeconfig_file, you can remove it from teleport.yaml to get rid of this warning")
 		}
+	} else if err != nil {
+		return nil, trace.Wrap(err)
 	} else {
 		log.Debug("Have all necessary Kubernetes impersonation permissions.")
+	}
+
+	log.Debug("Initialized Kubernetes credentials")
+	staticCreds.staticLabels = labels
+	return staticCreds, nil
+}
+
+// newStaticKubeCreds returns credentials to access a Kubernetes Cluster.
+// This function also validates if the Teleport agent has the required Impersonation permissions required, and if it doesn't have, it
+// returns a valid staticKubeCreds together with an AccessDenied error. The caller function can then choose if he should store *staticKubeCreds
+// in the creds map or not dependending on the usage case.
+func newStaticKubeCreds(
+	ctx context.Context,
+	cluster string,
+	clientCfg *rest.Config,
+	checkPermissions ImpersonationPermissionsChecker,
+) (*staticKubeCreds, error) {
+	var checkPermsError error
+	client, err := kubernetes.NewForConfig(clientCfg)
+	if err != nil {
+		return nil, trace.Wrap(err, "failed to generate Kubernetes client for cluster %q", cluster)
+	}
+
+	// For each loaded cluster, check impersonation permissions. This
+	// check only logs when permissions are not configured, but does not fail startup.
+	if err := checkPermissions(ctx, cluster, client.AuthorizationV1().SelfSubjectAccessReviews()); err != nil {
+		checkPermsError = trace.AccessDenied("permission denied to Kubernetes Cluster %s:", cluster, err)
 	}
 
 	targetAddr, err := parseKubeHost(clientCfg.Host)
@@ -213,14 +246,13 @@ func extractKubeCreds(ctx context.Context, cluster string, clientCfg *rest.Confi
 		return nil, trace.Wrap(err, "failed to generate transport config from kubeconfig: %v", err)
 	}
 
-	log.Debug("Initialized Kubernetes credentials")
 	return &staticKubeCreds{
 		tlsConfig:       tlsConfig,
 		transportConfig: transportConfig,
 		targetAddr:      targetAddr,
 		kubeClient:      client,
-		staticLabels:    labels,
-	}, nil
+	}, checkPermsError
+
 }
 
 // parseKubeHost parses and formats kubernetes hostname
@@ -236,16 +268,6 @@ func parseKubeHost(host string) (string, error) {
 		return fmt.Sprintf("%v:443", u.Host), nil
 	}
 	return u.Host, nil
-}
-
-func (c *staticKubeCreds) wrapTransport(rt http.RoundTripper) (http.RoundTripper, error) {
-	if c == nil {
-		return rt, nil
-	}
-	return transport.HTTPWrappersForConfig(c.transportConfig, rt)
-}
-func (c *staticKubeCreds) close() error {
-	return nil
 }
 
 func checkImpersonationPermissions(ctx context.Context, cluster string, sarClient authztypes.SelfSubjectAccessReviewInterface) error {
