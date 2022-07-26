@@ -139,7 +139,13 @@ func (f *eksClusterFetcher) FetchKubeClusters(ctx context.Context) error {
 						delete(f.cache, clusterName)
 					}
 					f.mu.Unlock()
-					f.action(ctx, operation, eksCluster)
+
+					if err := f.action(ctx, operation, eksCluster); err != nil {
+						// retry if error is returned
+						f.mu.Lock()
+						delete(f.cache, clusterName)
+						f.mu.Unlock()
+					}
 				}(aws.StringValue(clustersList.Clusters[i]))
 			}
 			wg.Wait()

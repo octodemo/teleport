@@ -49,7 +49,7 @@ type Cluster interface {
 // Types that are valid to be received in Cluster:
 //	*EKSCluster
 // TODO: add retry on return so users can decide if they want to retry or not
-type ActionFunc func(context.Context, Operation, Cluster)
+type ActionFunc func(context.Context, Operation, Cluster) error
 
 //EKSCluster represents a discovered EKS in AWS.
 type EKSCluster struct {

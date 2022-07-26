@@ -361,21 +361,24 @@ func (t *TLSServer) startStaticClustersHeartbeat() error {
 	return nil
 }
 
-func (t *TLSServer) dynamicKubediscoveryAction(ctx context.Context, operation watcher.Operation, cluster watcher.Cluster) {
+func (t *TLSServer) dynamicKubediscoveryAction(ctx context.Context, operation watcher.Operation, cluster watcher.Cluster) error {
 	switch operation {
 	case watcher.OperationCreate:
 		if err := t.addServer(ctx, cluster); err != nil {
 			t.Log.Warnf("unable to add cluster %s: %v", cluster.GetName(), err)
+			return err
 		}
 	case watcher.OperationUpdate:
 		if err := t.updateServer(cluster); err != nil {
 			t.Log.Warnf("unable to update cluster %s: %v", cluster.GetName(), err)
+			return err
 		}
 	case watcher.OperationDelete:
 		if err := t.stopServer(ctx, cluster.GetName()); err != nil {
 			t.Log.Warnf("unable to remove cluster %s: %v", cluster.GetName(), err)
 		}
 	}
+	return nil
 }
 
 func (t *TLSServer) addServer(ctx context.Context, cluster watcher.Cluster) error {
