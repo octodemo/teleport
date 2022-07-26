@@ -118,8 +118,7 @@ func newEKSDynamicCreds(cluster *watcher.EKSCluster, staticLabels map[string]str
 			return
 		case <-dn.renewTicker.C:
 			if err := dn.renewClientset(); err != nil {
-				// TODO: add loggs
-				_ = err
+				log.WithError(err).Warnf("unable to renew cluster \"%s\" credentials", cluster.Name)
 			}
 		}
 	}()
@@ -132,16 +131,8 @@ type eksDynamicCreds struct {
 	st                  *staticKubeCreds
 	serviceStaticLabels map[string]string
 	log                 logrus.FieldLogger
+	closeC              chan struct{}
 	sync.RWMutex
-	closeC chan struct{}
-}
-
-func (c *eksDynamicCreds) close() error {
-	c.Lock()
-	defer c.Unlock()
-	c.closeC <- struct{}{}
-	<-c.closeC
-	return nil
 }
 
 func (d *eksDynamicCreds) getTLSConfig() *tls.Config {
@@ -176,24 +167,38 @@ func (d *eksDynamicCreds) getStaticLabels() map[string]string {
 	return d.st.staticLabels
 }
 
+// updateCluster updates the EKS cluster and renews the access token.
 func (d *eksDynamicCreds) updateCluster(cluster *watcher.EKSCluster) error {
-	d.RLock()
+	d.Lock()
 	d.eksCluster = cluster
-	d.RUnlock()
+	d.Unlock()
 	return trace.Wrap(d.renewClientset())
 }
 
+// close closes the credentials renewal goroutine.
+func (c *eksDynamicCreds) close() error {
+	c.Lock()
+	defer c.Unlock()
+	c.closeC <- struct{}{}
+	<-c.closeC
+	return nil
+}
+
+// renewClientset generates a BearerToken for accessing the EKS clusters using the AWS Session provided by watcher.
 func (d *eksDynamicCreds) renewClientset() error {
+	// generate temporary Bearer token  to access EKS cluster
+	// this token is short-lived (the TTL is defined at the AWS IAM Role level) and should be revalidated
 	gen, err := token.NewGenerator(true, false)
 	if err != nil {
 		return trace.Wrap(err)
 	}
 
-	opts := &token.GetTokenOptions{
-		ClusterID: d.eksCluster.Name,
-		Session:   d.eksCluster.AWSSession,
-	}
-	tok, err := gen.GetWithOptions(opts)
+	tok, err := gen.GetWithOptions(
+		&token.GetTokenOptions{
+			ClusterID: d.eksCluster.Name,
+			Session:   d.eksCluster.AWSSession,
+		},
+	)
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -217,17 +222,23 @@ func (d *eksDynamicCreds) renewClientset() error {
 	d.Lock()
 	defer d.Unlock()
 	d.st = creds
+	// update the static labels if updated
 	d.genStaticLabelsFromEKS()
+	// prepares the next renew cycle
 	d.renewTicker.Reset(time.Until(tok.Expiration) / 2)
 	return nil
 }
 
+// genStaticLabelsFromEKS generates labels for the discovered cluster.
+// This function imports EKS tags as labels and appends the static service labels on top of them.
+// If EKS and static service labels have colision keys, service static label will replace the EKS tag.
 func (d *eksDynamicCreds) genStaticLabelsFromEKS() {
 	labels := map[string]string{}
 	maps.Copy(labels, d.eksCluster.Labels)
 	for k, v := range d.serviceStaticLabels {
 		labels[k] = v
 	}
+	// force "teleport.dev/origin:cloud" label
 	labels[types.OriginLabel] = types.OriginCloud
 	d.st.staticLabels = labels
 }
