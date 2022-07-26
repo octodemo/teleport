@@ -48,6 +48,7 @@ type Cluster interface {
 // ActionFunc is a callback function that Create/Update/Delete operations for discovered Kubernetes Clusters.
 // Types that are valid to be received in Cluster:
 //	*EKSCluster
+// TODO: add retry on return so users can decide if they want to retry or not
 type ActionFunc func(context.Context, Operation, Cluster)
 
 //EKSCluster represents a discovered EKS in AWS.
@@ -68,7 +69,7 @@ type EKSCluster struct {
 
 // GetName returns the cluster name.
 func (e *EKSCluster) GetName() string {
-	return e.APIEndpoint
+	return e.Name
 }
 
 // GetRegion returns the region where the cluster is located.
