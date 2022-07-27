@@ -16,7 +16,6 @@ package watcher
 import (
 	"context"
 	"encoding/base64"
-	"reflect"
 	"sync"
 	"time"
 
@@ -63,8 +62,6 @@ type cacheEntry struct {
 }
 
 func (f *eksClusterFetcher) FetchKubeClusters(ctx context.Context) error {
-	t1 := time.Now()
-
 	err := f.eksClient.ListClustersPagesWithContext(ctx,
 		&eks.ListClustersInput{
 			Include: nil, // For now we should only list EKS clusters
@@ -120,9 +117,14 @@ func (f *eksClusterFetcher) FetchKubeClusters(ctx context.Context) error {
 						f.mu.Lock()
 						if entry, ok := f.cache[clusterName]; ok {
 							// todo: validate the equality for eks clusters: endpoints + labels + CA
-							if reflect.DeepEqual(entry.cluster, eksCluster) {
+							if equalClusters(entry.cluster, eksCluster) {
 								// eks cluster has the same config as before.
 								// doing nothing and returning early since we do not need to update it.
+								f.cache[clusterName] = cacheEntry{
+									lastSeen: time.Now(),
+									cluster:  eksCluster,
+								}
+
 								f.mu.Unlock()
 								return
 							}
@@ -143,7 +145,6 @@ func (f *eksClusterFetcher) FetchKubeClusters(ctx context.Context) error {
 						delete(f.cache, clusterName)
 						f.mu.Unlock()
 					}
-
 					if err := f.action(ctx, operation, eksCluster); err != nil {
 						// retry if error is returned
 						f.mu.Lock()
@@ -163,7 +164,7 @@ func (f *eksClusterFetcher) FetchKubeClusters(ctx context.Context) error {
 	for k, v := range f.cache {
 		//  if last time we saw the cluster was in the previous iteration, than we should delete it since it's no longer available
 		// TODO: check if we should check twice the time.
-		if v.lastSeen.Before(t1) {
+		if v.lastSeen.Before(time.Now().Add(-3 * time.Minute)) {
 			deletions = append(deletions, k)
 			f.action(ctx, OperationDelete, v.cluster)
 		}

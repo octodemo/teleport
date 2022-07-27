@@ -15,6 +15,7 @@ package watcher
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	awssession "github.com/aws/aws-sdk-go/aws/session"
@@ -134,4 +135,23 @@ func (e *EKSCluster) GetAuthConfig() (*rest.Config, *time.Time, error) {
 			CAData: e.CAData,
 		},
 	}, expDate, nil
+}
+
+func equalClusters(c1, c2 Cluster) bool {
+	if c1.GetName() != c2.GetName() {
+		return false
+	}
+	if c1.GetAPIEndpoint() != c2.GetAPIEndpoint() {
+		return false
+	}
+	if c1.GetRegion() != c2.GetRegion() {
+		return false
+	}
+	if !reflect.DeepEqual(c1.GetLabels(), c2.GetLabels()) {
+		return false
+	}
+	if !reflect.DeepEqual(c1.GetCAData(), c2.GetCAData()) {
+		return false
+	}
+	return true
 }
