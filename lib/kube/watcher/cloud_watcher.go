@@ -33,6 +33,7 @@ type Config struct {
 type Watcher struct {
 	fetchers []fetcher
 	waitTime time.Duration
+	log      logrus.FieldLogger
 	ctx      context.Context
 	cancel   context.CancelFunc
 }
@@ -47,6 +48,7 @@ func NewWatcher(
 		ctx:      cancelCtx,
 		cancel:   cancelFn,
 		waitTime: time.Minute,
+		log:      cfg.Log,
 	}
 	for _, matcher := range cfg.AWSMatchers {
 		for _, region := range matcher.Regions {
@@ -78,7 +80,7 @@ func (w *Watcher) Start() {
 			for _, fetcher := range w.fetchers {
 				err := fetcher.FetchKubeClusters(w.ctx)
 				if err != nil {
-					logrus.Error("Failed to fetch EKS clusters: ", err)
+					w.log.WithError(err).Error("Failed to fetch EKS clusters")
 				}
 			}
 		case <-w.ctx.Done():

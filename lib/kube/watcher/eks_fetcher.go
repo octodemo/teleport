@@ -84,18 +84,18 @@ func (f *eksClusterFetcher) FetchKubeClusters(ctx context.Context) error {
 						},
 					)
 					if err != nil {
-						logger.WithError(err).Warnf("Unable to describe EKS cluster: %v", err)
+						logger.WithError(err).Warnf("Unable to describe EKS cluster")
 						return
 					}
 
 					eksCluster, err := f.newEKSClusterFromCluster(rsp.Cluster)
 					if err != nil {
-						logger.Warnf("unable to convert eks.Cluster into EKSCLuster: %v", err)
+						logger.WithError(err).Warnf("unable to convert eks.Cluster into EKSCLuster")
 						return
 					}
 
 					if match, reason, err := services.MatchLabels(f.filterLabels, eksCluster.Labels); err != nil {
-						logger.WithError(err).Warnf("Unable to match EKS cluster labels against match labels: %v", err)
+						logger.WithError(err).Warnf("Unable to match EKS cluster labels against match labels")
 						return
 					} else if !match {
 						f.mu.Lock()

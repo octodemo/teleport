@@ -365,17 +365,17 @@ func (t *TLSServer) dynamicKubediscoveryAction(ctx context.Context, operation wa
 	switch operation {
 	case watcher.OperationCreate:
 		if err := t.addServer(ctx, cluster); err != nil {
-			t.Log.Warnf("unable to add cluster %s: %v", cluster.GetName(), err)
+			t.Log.WithError(err).Warnf("unable to add cluster %s", cluster.GetName())
 			return err
 		}
 	case watcher.OperationUpdate:
 		if err := t.updateServer(cluster); err != nil {
-			t.Log.Warnf("unable to update cluster %s: %v", cluster.GetName(), err)
+			t.Log.WithError(err).Warnf("unable to update cluster %s", cluster.GetName())
 			return err
 		}
 	case watcher.OperationDelete:
 		if err := t.stopServer(ctx, cluster.GetName()); err != nil {
-			t.Log.Warnf("unable to remove cluster %s: %v", cluster.GetName(), err)
+			t.Log.WithError(err).Warnf("unable to remove cluster %s", cluster.GetName())
 		}
 	}
 	return nil
