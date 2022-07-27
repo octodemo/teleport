@@ -111,17 +111,19 @@ func (f *eksClusterFetcher) FetchKubeClusters(ctx context.Context) error {
 
 					// delete is triggered by other operation
 					var operation Operation
-					f.mu.Lock()
+
 					switch status := aws.StringValue(rsp.Cluster.Status); status {
 					case eks.ClusterStatusCreating, eks.ClusterStatusPending, eks.ClusterStatusFailed:
 						logger.Debugf("EKS cluster not ready: status=%s", status)
 						return
 					case eks.ClusterStatusActive, eks.ClusterStatusUpdating:
+						f.mu.Lock()
 						if entry, ok := f.cache[clusterName]; ok {
 							// todo: validate the equality for eks clusters: endpoints + labels + CA
 							if reflect.DeepEqual(entry.cluster, eksCluster) {
 								// eks cluster has the same config as before.
 								// doing nothing and returning early since we do not need to update it.
+								f.mu.Unlock()
 								return
 							}
 							operation = OperationUpdate
@@ -133,12 +135,14 @@ func (f *eksClusterFetcher) FetchKubeClusters(ctx context.Context) error {
 							lastSeen: time.Now(),
 							cluster:  eksCluster,
 						}
+						f.mu.Unlock()
 					case eks.ClusterStatusDeleting:
 						operation = OperationDelete
 						// clear object from cache
+						f.mu.Lock()
 						delete(f.cache, clusterName)
+						f.mu.Unlock()
 					}
-					f.mu.Unlock()
 
 					if err := f.action(ctx, operation, eksCluster); err != nil {
 						// retry if error is returned

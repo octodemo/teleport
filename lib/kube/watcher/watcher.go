@@ -15,8 +15,12 @@ package watcher
 
 import (
 	"context"
+	"time"
 
 	awssession "github.com/aws/aws-sdk-go/aws/session"
+	"github.com/gravitational/trace"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/aws-iam-authenticator/pkg/token"
 )
 
 // Operation defines the operation
@@ -43,6 +47,11 @@ type Cluster interface {
 	GetCAData() []byte
 	// GetLabels returns the sanitized labels ready to be used in Teleport.
 	GetLabels() map[string]string
+	// GetAuthConfig returns the authentication config to gain access to the cluster.
+	// The second returning parameter is the expiration date of the credentials.
+	// After that date they no longer provide access to the cluster. nil date means the credentials
+	// do not need to be revalidated.
+	GetAuthConfig() (*rest.Config, *time.Time, error)
 }
 
 // ActionFunc is a callback function that Create/Update/Delete operations for discovered Kubernetes Clusters.
@@ -90,4 +99,39 @@ func (e *EKSCluster) GetAPIEndpoint() string {
 // GetLabels returns the sanitized labels ready to be used in Teleport.
 func (e *EKSCluster) GetLabels() map[string]string {
 	return e.Labels
+}
+
+// GetAuthConfig returns the authentication config to gain access to the cluster.
+// The second returning parameter is the expiration time of the credentials.
+// nil means the credentials do not need to be revalidated.
+func (e *EKSCluster) GetAuthConfig() (*rest.Config, *time.Time, error) {
+	// generate temporary Bearer token  to access EKS cluster
+	// this token is short-lived (the TTL is defined at the AWS IAM Role level) and should be revalidated
+	gen, err := token.NewGenerator(true, false)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+
+	tok, err := gen.GetWithOptions(
+		&token.GetTokenOptions{
+			ClusterID: e.Name,
+			Session:   e.AWSSession,
+		},
+	)
+	if err != nil {
+		return nil, nil, trace.Wrap(err)
+	}
+
+	var expDate *time.Time
+	if !tok.Expiration.IsZero() {
+		expDate = &tok.Expiration
+	}
+
+	return &rest.Config{
+		Host:        e.APIEndpoint,
+		BearerToken: tok.Token,
+		TLSClientConfig: rest.TLSClientConfig{
+			CAData: e.CAData,
+		},
+	}, expDate, nil
 }

@@ -226,7 +226,7 @@ func newStaticKubeCreds(
 	// For each loaded cluster, check impersonation permissions. This
 	// check only logs when permissions are not configured, but does not fail startup.
 	if err := checkPermissions(ctx, cluster, client.AuthorizationV1().SelfSubjectAccessReviews()); err != nil {
-		checkPermsError = trace.AccessDenied("permission denied to Kubernetes Cluster %s:", cluster, err)
+		checkPermsError = trace.AccessDenied("permission denied to Kubernetes Cluster %s:", cluster)
 	}
 
 	targetAddr, err := parseKubeHost(clientCfg.Host)
