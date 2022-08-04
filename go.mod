@@ -129,7 +129,7 @@ require (
 	k8s.io/cli-runtime v0.24.0
 	k8s.io/client-go v0.24.2
 	k8s.io/kubectl v0.24.0
-	sigs.k8s.io/aws-iam-authenticator v0.5.9
+	sigs.k8s.io/aws-iam-authenticator v0.5.8-0.20220803211948-538f7f4314ef
 	sigs.k8s.io/controller-runtime v0.12.3
 	sigs.k8s.io/controller-tools v0.9.2
 )
@@ -320,7 +320,4 @@ replace (
 	github.com/russellhaering/gosaml2 => github.com/gravitational/gosaml2 v0.0.0-20220318224559-f06932032ae2
 	github.com/sirupsen/logrus => github.com/gravitational/logrus v1.4.4-0.20210817004754-047e20245621
 	github.com/vulcand/predicate => github.com/gravitational/predicate v1.2.1
-	// REMOVE before merging and after https://github.com/kubernetes-sigs/aws-iam-authenticator/pull/474 is merged
-	// otherwise we need to revert kube client to 0.24.2 which will break the operator.
-	sigs.k8s.io/aws-iam-authenticator => github.com/fengshunli/aws-iam-authenticator v0.5.8-0.20220719090955-bc28918e01f1
 )

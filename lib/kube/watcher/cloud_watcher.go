@@ -72,17 +72,19 @@ func NewWatcher(
 }
 
 func (w *Watcher) Start() {
+	w.log.Debugf("Kubernetes Cluster discovery started with polling interval of %s", w.waitTime)
+
 	ticker := time.NewTicker(w.waitTime)
 	defer ticker.Stop()
 	for {
+		for _, fetcher := range w.fetchers {
+			err := fetcher.FetchKubeClusters(w.ctx)
+			if err != nil {
+				w.log.WithError(err).Error("Failed to fetch EKS clusters")
+			}
+		}
 		select {
 		case <-ticker.C:
-			for _, fetcher := range w.fetchers {
-				err := fetcher.FetchKubeClusters(w.ctx)
-				if err != nil {
-					w.log.WithError(err).Error("Failed to fetch EKS clusters")
-				}
-			}
 		case <-w.ctx.Done():
 			return
 		}
