@@ -2462,7 +2462,6 @@ func (process *TeleportProcess) initUploaderService() error {
 	uploadsDir := filepath.Join(path...)
 
 	fileUploader, err := filesessions.NewUploader(filesessions.UploaderConfig{
-		AuditLog: conn.Client,
 		Streamer: conn.Client,
 		ScanDir:  uploadsDir,
 		EventsC:  process.Config.UploadEventsC,
