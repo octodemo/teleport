@@ -325,8 +325,8 @@ const (
 //
 // All spans received will have a `teleport.forwarded.for` attribute added to them with the value being one of
 // two things depending on the role of the forwarder:
-//  1) User forwarded: `teleport.forwarded.for: alice`
-//  2) Instance forwarded: `teleport.forwarded.for: Proxy.clustername:Proxy,Node,Instance`
+//  1. User forwarded: `teleport.forwarded.for: alice`
+//  2. Instance forwarded: `teleport.forwarded.for: Proxy.clustername:Proxy,Node,Instance`
 //
 // This allows upstream consumers of the spans to be able to identify forwarded spans and act on them accordingly.
 func (a *ServerWithRoles) Export(ctx context.Context, req *collectortracev1.ExportTraceServiceRequest) (*collectortracev1.ExportTraceServiceResponse, error) {
@@ -3055,7 +3055,7 @@ func (a *ServerWithRoles) CreateAuditStream(ctx context.Context, sid session.ID)
 	}
 	role, ok := a.context.Identity.(BuiltinRole)
 	if !ok || !role.IsServer() {
-		return nil, trace.AccessDenied("this request can be only executed by proxy, node or auth")
+		return nil, trace.AccessDenied("this request can be only executed by a Teleport server")
 	}
 	stream, err := a.authServer.CreateAuditStream(ctx, sid)
 	if err != nil {
@@ -3075,7 +3075,7 @@ func (a *ServerWithRoles) ResumeAuditStream(ctx context.Context, sid session.ID,
 	}
 	role, ok := a.context.Identity.(BuiltinRole)
 	if !ok || !role.IsServer() {
-		return nil, trace.AccessDenied("this request can be only executed by proxy, node or auth")
+		return nil, trace.AccessDenied("this request can be only executed by a Teleport server")
 	}
 	stream, err := a.authServer.ResumeAuditStream(ctx, sid, uploadID)
 	if err != nil {
@@ -3813,15 +3813,15 @@ func (a *ServerWithRoles) SignDatabaseCSR(ctx context.Context, req *proto.Databa
 //
 // This certificate can be requested by:
 //
-//  - Cluster administrator using "tctl auth sign --format=db" command locally
-//    on the auth server to produce a certificate for configuring a self-hosted
-//    database.
-//  - Remote user using "tctl auth sign --format=db" command with a remote
-//    proxy (e.g. Teleport Cloud), as long as they can impersonate system
-//    role Db.
-//  - Database service when initiating connection to a database instance to
-//    produce a client certificate.
-//  - Proxy service when generating mTLS files to a database
+//   - Cluster administrator using "tctl auth sign --format=db" command locally
+//     on the auth server to produce a certificate for configuring a self-hosted
+//     database.
+//   - Remote user using "tctl auth sign --format=db" command with a remote
+//     proxy (e.g. Teleport Cloud), as long as they can impersonate system
+//     role Db.
+//   - Database service when initiating connection to a database instance to
+//     produce a client certificate.
+//   - Proxy service when generating mTLS files to a database
 func (a *ServerWithRoles) GenerateDatabaseCert(ctx context.Context, req *proto.DatabaseCertRequest) (*proto.DatabaseCertResponse, error) {
 	// Check if the User can `create` DatabaseCertificates
 	err := a.action(apidefaults.Namespace, types.KindDatabaseCertificate, types.VerbCreate)
@@ -4500,10 +4500,15 @@ func (a *ServerWithRoles) ReplaceRemoteLocks(ctx context.Context, clusterName st
 // channel if one is encountered. Otherwise the event channel is closed when the stream ends.
 // The event channel is not closed on error to prevent race conditions in downstream select statements.
 func (a *ServerWithRoles) StreamSessionEvents(ctx context.Context, sessionID session.ID, startIndex int64) (chan apievents.AuditEvent, chan error) {
-	if err := a.actionForKindSession(apidefaults.Namespace, types.VerbList, sessionID); err != nil {
-		c, e := make(chan apievents.AuditEvent), make(chan error, 1)
-		e <- trace.Wrap(err)
-		return c, e
+	err := a.serverAction()
+	isTeleportServer := err == nil
+
+	if !isTeleportServer {
+		if err := a.actionForKindSession(apidefaults.Namespace, types.VerbList, sessionID); err != nil {
+			c, e := make(chan apievents.AuditEvent), make(chan error, 1)
+			e <- trace.Wrap(err)
+			return c, e
+		}
 	}
 
 	return a.alog.StreamSessionEvents(ctx, sessionID, startIndex)
