@@ -155,6 +155,33 @@
           ]
         },
         {
+          "title": "Monitoring Your Cluster",
+          "slug": "/setup/diagnostics/",
+          "forScopes": ["oss", "enterprise"],
+          "entries": [
+            {
+              "title": "Collecting Profiles",
+              "slug": "/setup/diagnostics/profiles/",
+              "forScopes": ["oss", "enterprise"]
+            },
+            {
+              "title": "Distributed Tracing",
+              "slug": "/setup/diagnostics/tracing/",
+              "forScopes": ["oss", "enterprise"]
+            },
+            {
+              "title": "Health Monitoring",
+              "slug": "/setup/diagnostics/monitoring/",
+              "forScopes": ["oss", "enterprise"]
+            },
+            {
+              "title": "Metrics",
+              "slug": "/setup/diagnostics/metrics/",
+              "forScopes": ["oss", "enterprise"]
+            }
+          ]
+        },
+        {
           "title": "Operations",
           "slug": "/setup/operations/",
           "entries": [
@@ -247,10 +274,6 @@
             {
               "title": "Command Line",
               "slug": "/setup/reference/cli/"
-            },
-            {
-              "title": "Metrics",
-              "slug": "/setup/reference/metrics/"
             },
             {
               "title": "Terraform Resources",
@@ -1120,7 +1143,12 @@
     },
     {
       "source": "/metrics-logs-reference/",
-      "destination": "/setup/reference/metrics/",
+      "destination": "/setup/diagnostics/metrics/",
+      "permanent": true
+    },
+    {
+      "source": "/setup/reference/metrics/",
+      "destination": "/setup/diagnostics/metrics/",
       "permanent": true
     },
     {
