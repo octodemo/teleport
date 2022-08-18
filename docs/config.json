@@ -962,7 +962,11 @@
             {
               "title": "teleport-kube-agent",
               "slug": "/reference/helm-reference/teleport-kube-agent/"
-            }
+            }, 
+            {
+              "title": "teleport-plugin-event-handler",
+              "slug": "/reference/helm-reference/teleport-plugin-event-handler/"
+	    }
           ]
         }
       ]
