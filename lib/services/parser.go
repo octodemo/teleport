@@ -181,6 +181,8 @@ type Context struct {
 	Session events.AuditEvent
 	// SSHSession is an optional (active) SSH session.
 	SSHSession *session.Session
+	// SessionTracker is an optional session tracker, in case if the rule checks access to the tracker.
+	SessionTracker types.SessionTracker
 }
 
 // String returns user friendly representation of this context
@@ -205,6 +207,8 @@ const (
 	ImpersonateRoleIdentifier = "impersonate_role"
 	// ImpersonateUserIdentifier is a user to impersonate
 	ImpersonateUserIdentifier = "impersonate_user"
+	// SessionTrackerIdentifier refers to a session tracker in the rules.
+	SessionTrackerIdentifier = "tracker"
 )
 
 // GetResource returns resource specified in the context,
@@ -246,8 +250,67 @@ func (ctx *Context) GetIdentifier(fields []string) (interface{}, error) {
 		// Do not expose the original session.Session, instead transform it into a
 		// ctxSession so the exposed fields match our desired API.
 		return predicate.GetFieldByTag(toCtxSession(ctx.SSHSession), teleport.JSON, fields[1:])
+	case SessionTrackerIdentifier:
+		return predicate.GetFieldByTag(toCtxTracker(ctx.SessionTracker), teleport.JSON, fields[1:])
 	default:
 		return nil, trace.NotFound("%v is not defined", strings.Join(fields, "."))
+	}
+}
+
+// ctxSession represents the public contract of a session.Session, as exposed
+// to a Context rule.
+// See RFD 82: https://github.com/gravitational/teleport/blob/master/rfd/0082-session-tracker-resource-rbac.md
+type ctxTracker struct {
+	SessionID    string   `json:"session_id"`
+	Kind         string   `json:"kind"`
+	Participants []string `json:"participants"`
+	State        string   `json:"state"`
+	Hostname     string   `json:"hostname"`
+	Address      string   `json:"address"`
+	Login        string   `json:"login"`
+	Cluster      string   `json:"cluster"`
+	KubeCluster  string   `json:"kube_cluster"`
+	HostUser     string   `json:"host_user"`
+	HostRoles    []string `json:"host_roles"`
+}
+
+func toCtxTracker(t types.SessionTracker) ctxTracker {
+	if t == nil {
+		return ctxTracker{}
+	}
+
+	getParticipants := func(s types.SessionTracker) []string {
+		participants := s.GetParticipants()
+		names := make([]string, len(participants))
+		for i, participant := range participants {
+			names[i] = participant.User
+		}
+
+		return names
+	}
+
+	getHostRoles := func(s types.SessionTracker) []string {
+		policySets := s.GetHostPolicySets()
+		roles := make([]string, len(policySets))
+		for i, policySet := range policySets {
+			roles[i] = policySet.Name
+		}
+
+		return roles
+	}
+
+	return ctxTracker{
+		t.GetSessionID(),
+		t.GetKind(),
+		getParticipants(t),
+		string(t.GetState()),
+		t.GetHostname(),
+		t.GetAddress(),
+		t.GetLogin(),
+		t.GetClusterName(),
+		t.GetKubeCluster(),
+		t.GetHostUser(),
+		getHostRoles(t),
 	}
 }
 
@@ -527,9 +590,10 @@ func newParserForIdentifierSubcondition(ctx RuleContext, identifier string) (pre
 // NewResourceParser returns a parser made for boolean expressions based on a
 // json-serialiable resource. Customized to allow short identifiers common in all
 // resources:
-//  - `metadata.name` can be referenced with `name` ie: `name == "jenkins"``
-//  - `metadata.labels + spec.dynamic_labels` can be referenced with `labels`
+//   - `metadata.name` can be referenced with `name` ie: `name == "jenkins"“
+//   - `metadata.labels + spec.dynamic_labels` can be referenced with `labels`
 //     ie: `labels.env == "prod"`
+//
 // All other fields can be referenced by starting expression with identifier `resource`
 // followed by the names of the json fields ie: `resource.spec.public_addr`.
 func NewResourceParser(resource types.ResourceWithLabels) (BoolPredicateParser, error) {
