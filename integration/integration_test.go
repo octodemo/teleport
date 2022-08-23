@@ -721,12 +721,12 @@ func (s *integrationTestSuite) newTeleportIoT(t *testing.T, logins []string) *he
 		tconf := s.defaultServiceConfig()
 		tconf.Hostname = Host
 		tconf.SetToken("token")
-		tconf.AuthServers = []utils.NetAddr{
+		tconf.SetAuthServerAddresses([]utils.NetAddr{
 			{
 				AddrNetwork: "tcp",
 				Addr:        main.Web,
 			},
-		}
+		})
 
 		tconf.Auth.Enabled = false
 
@@ -2696,12 +2696,12 @@ func testTrustedTunnelNode(t *testing.T, suite *integrationTestSuite) {
 		tconf := suite.defaultServiceConfig()
 		tconf.Hostname = tunnelNodeHostname
 		tconf.SetToken("token")
-		tconf.AuthServers = []utils.NetAddr{
+		tconf.SetAuthServerAddresses([]utils.NetAddr{
 			{
 				AddrNetwork: "tcp",
 				Addr:        aux.Web,
 			},
-		}
+		})
 		tconf.Auth.Enabled = false
 		tconf.Proxy.Enabled = false
 		tconf.SSH.Enabled = true
@@ -3097,12 +3097,12 @@ func testReverseTunnelCollapse(t *testing.T, suite *integrationTestSuite) {
 		tconf := suite.defaultServiceConfig()
 		tconf.Hostname = "cluster-main-node"
 		tconf.SetToken("token")
-		tconf.AuthServers = []utils.NetAddr{
+		tconf.SetAuthServerAddresses([]utils.NetAddr{
 			{
 				AddrNetwork: "tcp",
 				Addr:        net.JoinHostPort(Loopback, strconv.Itoa(proxyWebPort)),
 			},
-		}
+		})
 		tconf.Auth.Enabled = false
 		tconf.Proxy.Enabled = false
 		tconf.SSH.Enabled = true
@@ -3233,12 +3233,12 @@ func testDiscoveryNode(t *testing.T, suite *integrationTestSuite) {
 		tconf := suite.defaultServiceConfig()
 		tconf.Hostname = "cluster-main-node"
 		tconf.SetToken("token")
-		tconf.AuthServers = []utils.NetAddr{
+		tconf.SetAuthServerAddresses([]utils.NetAddr{
 			{
 				AddrNetwork: "tcp",
 				Addr:        main.Web,
 			},
-		}
+		})
 
 		tconf.Auth.Enabled = false
 
@@ -6275,9 +6275,9 @@ func testListResourcesAcrossClusters(t *testing.T, suite *integrationTestSuite) 
 			conf.DataDir = t.TempDir()
 			conf.SetToken("token")
 			conf.UploadEventsC = i.UploadEventsC
-			conf.AuthServers = []utils.NetAddr{
+			conf.SetAuthServerAddresses([]utils.NetAddr{
 				*utils.MustParseAddr(net.JoinHostPort(i.Hostname, helpers.PortStr(t, i.Web))),
-			}
+			})
 			conf.HostUUID = name
 			conf.Hostname = name
 			conf.SSH.Enabled = true
