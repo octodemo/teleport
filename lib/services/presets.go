@@ -151,6 +151,7 @@ func NewPresetAuditorRole() types.Role {
 				Rules: []types.Rule{
 					types.NewRule(types.KindSession, RO()),
 					types.NewRule(types.KindEvent, RO()),
+					types.NewRule(types.KindSessionTracker, RO()),
 				},
 			},
 		},
