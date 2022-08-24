@@ -132,7 +132,7 @@ impl Client {
             Some(c) => Ok(c),
             None => {
                 error!("invalid Rust client pointer");
-                Err(CGOErrCode::ErrCodeFailure)
+                Err(CGOErrCode::ErrCodeClientPtr)
             }
         }
     }
@@ -1391,10 +1391,11 @@ unsafe fn from_go_array<T: Clone>(data: *mut T, len: u32) -> Vec<T> {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum CGOErrCode {
     ErrCodeSuccess = 0,
     ErrCodeFailure = 1,
+    ErrCodeClientPtr = 2,
 }
 
 #[repr(C)]
