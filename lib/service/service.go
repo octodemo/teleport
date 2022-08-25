@@ -1922,6 +1922,7 @@ func (process *TeleportProcess) newAccessCache(cfg accessCacheConfig) (*cache.Ca
 		MetricComponent:  teleport.Component(append(cfg.cacheName, teleport.ComponentCache)...),
 		Tracer:           process.TracingProvider.Tracer(teleport.ComponentCache),
 		Unstarted:        cfg.unstarted,
+		DiscoveryAgent:   len(process.Config.SSH.AWSMatchers) != 0,
 	}))
 }
 

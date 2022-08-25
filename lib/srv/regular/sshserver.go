@@ -1093,7 +1093,6 @@ func (s *Server) handleInstances(instances *server.EC2Instances) error {
 }
 
 func (s *Server) handleEC2Discovery() {
-
 	go s.cloudWatcher.Run()
 	for {
 		select {
