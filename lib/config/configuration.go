@@ -1440,7 +1440,7 @@ func applyWindowsDesktopConfig(fc *FileConfig, cfg *service.Config) error {
 		return trace.Wrap(err)
 	}
 	if fc.WindowsDesktop.LDAP.DEREncodedCAFile != "" && fc.WindowsDesktop.LDAP.PEMEncodedCACert != "" {
-		return trace.BadParameter("WindowsDesktopService can not use both der_ca_file and pem_ca_cert")
+		return trace.BadParameter("WindowsDesktopService can not use both der_ca_file and ldap_ca_cert")
 	}
 
 	var cert *x509.Certificate
@@ -1460,7 +1460,7 @@ func applyWindowsDesktopConfig(fc *FileConfig, cfg *service.Config) error {
 		block, _ := pem.Decode([]byte(fc.WindowsDesktop.LDAP.PEMEncodedCACert))
 
 		if block == nil || block.Type != "CERTIFICATE" {
-			log.Fatal("failed to decode PEM block containing x509 certificate")
+			return trace.BadParameter("failed to decode PEM block containing x509 certificate")
 		}
 
 		cert, err = x509.ParseCertificate(block.Bytes)

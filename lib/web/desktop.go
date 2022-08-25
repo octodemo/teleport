@@ -17,8 +17,14 @@ limitations under the License.
 package web
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha1"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/pem"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -36,10 +42,12 @@ import (
 	"github.com/gravitational/teleport/api/types"
 	"github.com/gravitational/teleport/lib/auth"
 	"github.com/gravitational/teleport/lib/client"
+	"github.com/gravitational/teleport/lib/httplib"
 	"github.com/gravitational/teleport/lib/reversetunnel"
 	"github.com/gravitational/teleport/lib/srv/desktop"
 	"github.com/gravitational/teleport/lib/srv/desktop/tdp"
 	"github.com/gravitational/teleport/lib/utils"
+	"github.com/gravitational/teleport/lib/web/scripts"
 )
 
 // GET /webapi/sites/:site/desktops/:desktopName/connect?access_token=<bearer_token>&username=<username>&width=<width>&height=<height>
@@ -370,4 +378,78 @@ func proxyWebsocketConn(ws *websocket.Conn, wds net.Conn) error {
 		retErrs = append(retErrs, <-errs)
 	}
 	return trace.NewAggregate(retErrs...)
+}
+
+// createCertificateBlob creates Certificate BLOB
+// It has following structure:
+// 	CertificateBlob {
+// 		PropertyID: u32, little endian,
+// 		Reserved: u32, little endian, must be set to 0x01 0x00 0x00 0x00
+// 		Length: u32, little endian
+// 		Value: certificate data
+// 	}
+//
+func createCertificateBlob(certData []byte) []byte {
+	buf := new(bytes.Buffer)
+	buf.Grow(len(certData) + 12)
+	// PropertyID for certificate is 32
+	binary.Write(buf, binary.LittleEndian, int32(32))
+	binary.Write(buf, binary.LittleEndian, int32(1))
+	binary.Write(buf, binary.LittleEndian, int32(len(certData)))
+	buf.Write(certData)
+
+	return buf.Bytes()
+}
+
+func (h *Handler) desktopAccessScriptConfigureHandle(w http.ResponseWriter, r *http.Request, p httprouter.Params) (interface{}, error) {
+	httplib.SetScriptHeaders(w.Header())
+	clusterName, err := h.auth.proxyClient.GetDomainName(r.Context())
+
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	certAuthority, err := h.auth.proxyClient.GetCertAuthority(
+		r.Context(),
+		types.CertAuthID{Type: types.UserCA, DomainName: clusterName},
+		false,
+	)
+
+	if err != nil {
+		return nil, trace.Wrap(err)
+	}
+
+	if len(certAuthority.GetActiveKeys().TLS) != 1 {
+		return nil, trace.BadParameter("expected one TLS key pair, got %v", len(certAuthority.GetActiveKeys().TLS))
+	}
+
+	keyPair := certAuthority.GetActiveKeys().TLS[0]
+	block, _ := pem.Decode(keyPair.Cert)
+	if block == nil {
+		return nil, trace.BadParameter("no PEM data in CA data")
+	}
+
+	w.WriteHeader(http.StatusOK)
+	err = scripts.DesktopAccessScriptConfigure.Execute(w, map[string]string{
+		"caCertPEM":  string(keyPair.Cert),
+		"caCertsha1": fmt.Sprintf("%X", sha1.Sum(block.Bytes)),
+		"caCertb64":  base64.StdEncoding.EncodeToString(createCertificateBlob(block.Bytes)),
+	})
+
+	return nil, trace.Wrap(err)
+
+}
+
+func (h *Handler) desktopAccessScriptInstallADDSHandle(w http.ResponseWriter, r *http.Request, p httprouter.Params) (interface{}, error) {
+	httplib.SetScriptHeaders(w.Header())
+	w.WriteHeader(http.StatusOK)
+	_, err := io.WriteString(w, scripts.DesktopAccessScriptInstallADDS)
+	return nil, trace.Wrap(err)
+}
+
+func (h *Handler) desktopAccessScriptInstallADCSHandle(w http.ResponseWriter, r *http.Request, p httprouter.Params) (interface{}, error) {
+	httplib.SetScriptHeaders(w.Header())
+	w.WriteHeader(http.StatusOK)
+	_, err := io.WriteString(w, scripts.DesktopAccessScriptInstallADCS)
+	return nil, trace.Wrap(err)
 }

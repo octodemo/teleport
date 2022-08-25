@@ -28,12 +28,13 @@ windows_desktop_service:
     # this to true. It is recommended that this be set to false
     # and the certificate added your system's trusted repository,
     # or its filepath provided in with der_ca_file variable below
-    # or as PEM encoded certificate using pem_ca_cert variable.
+    # or as PEM encoded certificate using ldap_ca_cert variable.
     insecure_skip_verify: false
     # DER encoded LDAP CA certificate.
+    # deprecated: prefer ldap_ca_cert instead
     der_ca_file: /path/to/cert
     # PEM encoded LDAP CA certificate.
-    pem_ca_cert: |
+    ldap_ca_cert: |
       -----BEGIN CERTIFICATE-----
           *certificate data*
       -----END CERTIFICATE-----
