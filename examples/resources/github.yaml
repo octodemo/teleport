@@ -14,8 +14,8 @@ spec:
   # button on the cluster login screen so it will say "Login with Github"
   display: Github
   # mapping of Github team memberships to Teleport cluster roles
-  teams_to_logins:
-  - logins:
+  teams_to_roles:
+  - roles:
     - access
     - editor
     organization: <github-org>
