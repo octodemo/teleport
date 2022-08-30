@@ -1,0 +1,48 @@
+---
+title: "Monitor Audit Events with the Elastic Stack"
+description: "How to configure Teleport's event handler plugin to send audit events to the Elastic Stack"
+---
+
+The Elastic Stack, often called the ELK Stack (for Elasticsearch, Logstash, and
+Kibana) is a popular open source and managed solution for collecting and
+analyzing logs. In this guide, we will show you how to configure Teleport's
+event handler plugin to send your Teleport audit events to the Elastic Stack so
+you can get a better understanding of user activity in your Teleport cluster.
+
+## Prerequisites
+
+(!docs/pages//includes/commercial-prereqs-tabs.mdx!)
+
+- A Linux host running Elasticsearch, Logstash, and Kibana
+
+{/* TODO: Add version info for ELK*/}
+
+## Step 1/ . Install the event handler plugin
+
+### Define RBAC resources
+
+{/* TODO: Include creating a user and role for the plugin, e.g., as given in the
+Slack guide but for the event handler*/}
+
+### Export the access plugin identity
+
+### Install the event handler plugin
+
+{/* TODO: include the systemd instructions here to save space */}
+
+## Step 2/ . Configure a Logstash pipeline
+
+## Step 3/ . Create a data view
+
+{/* TODO: 
+Find some good audit event types to use in the data view
+https://www.elastic.co/guide/en/kibana/8.0/data-views.html 
+
+-*/}
+
+## Step 4/ . Create an alert
+
+{/* TODO:
+https://www.elastic.co/guide/en/kibana/current/alerting-getting-started.html
+-*/}
+
