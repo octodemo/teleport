@@ -226,18 +226,14 @@ impl Client {
         let req = ServerClientIdConfirm::decode(payload)?;
         debug!("received RDP {:?}", req);
 
-        // The smartcard initialization sequence that contains this message happens once at session startup,
-        // and once when login succeeds. We only need to announce the smartcard once.
-        let resp = if !self.active_device_ids.contains(&SCARD_DEVICE_ID) {
+        if !self.active_device_ids.contains(&SCARD_DEVICE_ID) {
             self.push_active_device_id(SCARD_DEVICE_ID)?;
-            let resp = ClientDeviceListAnnounceRequest::new_smartcard(SCARD_DEVICE_ID);
-            debug!("sending RDP {:?}", resp);
-            self.add_headers_and_chunkify(PacketId::PAKID_CORE_DEVICELIST_ANNOUNCE, resp.encode()?)?
-        } else {
-            let resp = ClientDeviceListAnnounceRequest::new_empty();
-            debug!("sending RDP {:?}", resp);
-            self.add_headers_and_chunkify(PacketId::PAKID_CORE_DEVICELIST_ANNOUNCE, resp.encode()?)?
-        };
+        }
+
+        let resp = ClientDeviceListAnnounceRequest::new_smartcard(SCARD_DEVICE_ID);
+        debug!("sending RDP {:?}", resp);
+        let resp = self
+            .add_headers_and_chunkify(PacketId::PAKID_CORE_DEVICELIST_ANNOUNCE, resp.encode()?)?;
         Ok(resp)
     }
 
