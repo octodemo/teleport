@@ -13,22 +13,318 @@ you can get a better understanding of user activity in your Teleport cluster.
 
 (!docs/pages//includes/commercial-prereqs-tabs.mdx!)
 
-- A Linux host running Elasticsearch, Logstash, and Kibana
+- Either a Linux host or a Kubernetes cluster running Elasticsearch, Logstash,
+  and Kibana.
 
 {/* TODO: Add version info for ELK*/}
 
 ## Step 1/ . Install the event handler plugin
 
-### Define RBAC resources
-
-{/* TODO: Include creating a user and role for the plugin, e.g., as given in the
-Slack guide but for the event handler*/}
-
-### Export the access plugin identity
 
 ### Install the event handler plugin
 
-{/* TODO: include the systemd instructions here to save space */}
+The Teleport event handler runs alongside Logstash, receives events from
+Teleport's events API, and forwards them to Elasticsearch.
+
+On the host where you are running the Elastic stack, execute the following
+commands:
+
+<Tabs>
+  <TabItem label="Linux">
+  ```code
+  $ curl -L -O https://get.gravitational.com/teleport-event-handler-v(=teleport.plugin.version=)-linux-amd64-bin.tar.gz
+  $ tar -zxvf teleport-event-handler-v(=teleport.plugin.version=)-linux-amd64-bin.tar.gz
+  ```
+  </TabItem>
+
+  <TabItem label="macOS">
+
+  ```code
+  $ curl -L -O https://get.gravitational.com/teleport-event-handler-v(=teleport.plugin.version=)-darwin-amd64-bin.tar.gz
+  $ tar -zxvf teleport-event-handler-v(=teleport.plugin.version=)-darwin-amd64-bin.tar.gz
+  ```
+
+  We currently only build the event handler plugin for amd64 machines. If your
+  macOS machine uses Apple silicon, you will need to [install
+  Rosetta](https://support.apple.com/en-us/HT211861) before you can run the
+  event handler plugin. You can also build from source.
+  </TabItem>
+
+  <TabItem label="Docker">
+  ```code
+  $ docker pull public.ecr.aws/gravitational/teleport-plugin-event-handler:(=teleport.plugin.version=)
+  ```
+  </TabItem>
+
+  <TabItem label="Helm">
+  ```code
+  $ helm repo add teleport https://charts.releases.teleport.dev/
+  ```
+  </TabItem>
+  <TabItem label="From Source">
+  Ensure that you have Docker installed and running.
+
+  Run the following commands to build the plugin:
+
+  ```code
+  $ git clone https://github.com/gravitational/teleport-plugins.git --depth 1
+  $ cd teleport-plugins/event-handler/build.assets
+  $ make build
+  ```
+
+  You can find the compiled binary within your clone of the `teleport-plugins`
+  repo, with the file path, `event-handler/build/teleport-event-handler`.
+
+  </TabItem>
+</Tabs>
+
+### Generate a starter config file
+
+<Tabs>
+<TabItem scope={["cloud"]} label="Teleport Cloud">
+
+Run the `configure` command to generate a sample configuration. Replace
+`mytenant.teleport.sh` with the DNS name of your Teleport Cloud tenant:
+
+```code
+$ ./teleport-event-handler configure . mytenant.teleport.sh
+```
+
+</TabItem>
+<TabItem scope={["oss", "enterprise"]} label="Self-Hosted">
+
+Run the `configure` command to generate a sample configuration. Replace
+`teleport.example.com:443` with the DNS name and HTTPS port of Teleport's Proxy
+Service:
+
+```code
+$ ./teleport-event-handler configure . teleport.example.com:443
+```
+
+</TabItem>
+<TabItem scope={["oss", "enterprise", "cloud"]} label="Helm Chart">
+
+Run the `configure` command to generate a sample configuration. Assign
+`TELEPORT_CLUSTER_ADDRESS` to the DNS name and port of your Teleport Auth
+Service or Proxy Service:
+
+```code
+$ TELEPORT_CLUSTER_ADDRESS=mytenant.teleport.sh:443
+$ docker run -v `pwd`:/opt/teleport-plugin -w /opt/teleport-plugin public.ecr.aws/gravitational/teleport-plugin-event-handler:(=teleport.plugin.version=) configure . ${TELEPORT_CLUSTER_ADDRESS?}
+```
+
+In order to connect to Logstash, you'll need to have the root certificate and
+the client credentials available as a secret. Use the following command to
+create that secret in Kubernetes:
+
+```code
+$ kubectl create secret generic teleport-event-handler-client-tls --from-file=ca.crt=ca.crt,client.crt=client.crt,client.key=client.key
+```
+
+This will pack the content of `ca.crt`, `client.crt`, and `client.key` into the
+secret so the Helm chart can mount them to their appropriate path.
+
+</TabItem>
+</Tabs>
+
+The `teleport-event-handler configure` command generates several setup files:
+
+|File(s)|Purpose|
+|---|---|
+| `ca.crt` and `ca.key`| Self-signed CA certificate and private key for Fluentd|
+| `server.crt` and `server.key`| Fluentd server certificate and key|
+| `client.crt` and `client.key`| Fluentd client certificate and key, all signed by the generated CA|
+| `teleport-event-handler-role.yaml`| `user` and `role` resource definitions for Teleport's event handler |client.
+| `fluent.conf`| Fluentd plugin configuration|
+
+
+### Define RBAC resources
+
+The `configure` command generates a file called
+`teleport-event-handler-role.yaml` that defines a `teleport-event-handler` role
+and a user with read-only access to the `event` API:
+
+```yaml
+kind: user
+metadata:
+  name: teleport-event-handler
+spec:
+  roles: ['teleport-event-handler']
+version: v2
+---
+kind: role
+metadata:
+  name: teleport-event-handler
+spec:
+  allow:
+    rules:
+      - resources: ['event']
+        verbs: ['list','read']
+version: v5
+```
+
+Use `tctl` to create the role and the user:
+
+```code
+$ tctl create -f teleport-event-handler-role.yaml
+# user "teleport-event-handler" has been created
+# role 'teleport-event-handler' has been created
+```
+
+### Enable impersonation of the event handler plugin user
+
+In order for the Fluentd plugin to forward events from your Teleport cluster, it
+needs a signed identity file from the cluster's certificate authority. The
+Fluentd user cannot request this itself, and requires another user to
+**impersonate** this account in order to request a certificate.
+
+Create a role that enables your user to impersonate the Fluentd user. First,
+paste the following YAML document into a file called
+`teleport-event-handler-impersonator.yaml`:
+
+```yaml
+kind: role
+version: v5
+metadata:
+  name: teleport-event-handler-impersonator
+spec:
+  # SSH options used for user sessions
+  options:
+    # max_session_ttl defines the TTL (time to live) of SSH certificates
+    # issued to the users with this role.
+    max_session_ttl: 10h
+
+  # allow section declares a list of resource/verb combinations that are
+  # allowed for the users of this role. by default nothing is allowed.
+  allow:
+    impersonate:
+      users: ["teleport-event-handler"]
+      roles: ["teleport-event-handler"]
+```
+
+Next, create the role:
+
+```code
+$ tctl create teleport-event-handler-impersonator.yaml
+```
+
+Assign this role to the current user by running the following command, substituting
+the user as appropriate:
+
+```code
+$ tctl get users/<USER> > out.yaml
+```
+
+Now edit `out.yaml`, adding `teleport-event-handler-impersonator` to the list of
+existing roles and update via `tctl` again:
+
+```
+$ tctl create -f out.yaml
+```
+
+Log in to your Teleport cluster again to assume the new role.
+
+### Export the access plugin identity
+
+Like all Teleport users, `teleport-event-handler` needs signed credentials in
+order to connect to your Teleport cluster. You will use the `tctl auth sign`
+command to request these credentials for your plugin. 
+
+<ScopedBlock scope={["enterprise"]}>
+
+The format of the credentials depends on whether you have set up your network to
+give the plugin direct access to the Teleport Auth Service, or if all Teleport
+clients and services connect to the Teleport Proxy Service instead.
+
+<Tabs>
+<TabItem label="Connect to the Proxy Service">
+
+
+The following `tctl auth sign` command impersonates the `access-plugin` user,
+generates signed credentials, and writes an identity file to the local
+directory:
+
+```code
+$ tctl auth sign --user=teleport-event-handler --out=auth.pem
+```
+
+The event handler plugin listens for audit events by connecting to the Teleport
+Auth Service's gRPC endpoint over TLS.
+
+The identity file, `auth.pem`, includes both TLS and SSH credentials. Your
+event handler plugin uses the SSH credentials to connect to the Proxy Service,
+which establishes a reverse tunnel connection to the Auth Service. The plugin
+uses this reverse tunnel, along with your TLS credentials, to connect to the
+Auth Service's gRPC endpoint.
+
+You will refer to this file later when configuring the plugin.
+
+</TabItem>
+<TabItem label="Connect to the Auth Service">
+
+If your network allows your plugin to access the Auth Service directly, e.g.,
+you are running the plugin on the Auth Service host, the plugin uses TLS
+credentials to connect to the Auth Service's gRPC endpoint and listen for audit
+events.
+
+You can generate TLS credentials with the following command:
+
+```code
+$ tctl auth sign --format=tls --user=teleport-event-handler --out=auth
+```
+
+This command should result in three PEM-encoded files: `auth.crt`,
+`auth.key`, and `auth.cas` (certificate, private key, and CA certs
+respectively). Later, you will configure the plugin to use these credentials to
+connect to the Auth Service directly.
+
+</TabItem>
+</Tabs>
+
+</ScopedBlock>
+
+<ScopedBlock scope="cloud">
+
+
+The following `tctl auth sign` command impersonates the `teleport-event-handler`
+user, generates signed credentials, and writes an identity file to the local
+directory:
+
+```code
+$ tctl auth sign --user=teleport-event-handler --out=auth.pem
+```
+
+Teleport's event handler plugin listens for new and updated audit events by
+connecting to the Teleport Auth Service's gRPC endpoint over TLS.
+
+The identity file, `auth.pem`, includes both TLS and SSH credentials. Your
+event handler plugin uses the SSH credentials to connect to the Proxy Service,
+which establishes a reverse tunnel connection to the Auth Service. The plugin
+uses this reverse tunnel, along with your TLS credentials, to connect to the
+Auth Service's gRPC endpoint.
+
+You will refer to this file later when configuring the plugin.
+
+</ScopedBlock>
+
+<Admonition
+  title="Certificate Lifetime"
+>
+
+  By default, `tctl auth sign` produces certificates with a relatively short
+  lifetime. For production deployments, you can use the `--ttl` flag to ensure a
+  more practical certificate lifetime, e.g., `--ttl=8760h` to export a one-year
+  certificate.
+
+</Admonition>
+
+### Fill in the configuration
+
+{/* TODO: Update the config with credentials you generated earlier*/}
+
+### Start the plugin
+
+{/* TODO: Do this without systemd to save space*/}
 
 ## Step 2/ . Configure a Logstash pipeline
 
