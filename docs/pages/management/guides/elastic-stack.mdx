@@ -45,6 +45,8 @@ forwards them to Logstash.
   $ curl -L -O https://get.gravitational.com/teleport-event-handler-v(=teleport.plugin.version=)-linux-amd64-bin.tar.gz
   $ tar -zxvf teleport-event-handler-v(=teleport.plugin.version=)-linux-amd64-bin.tar.gz
   ```
+
+  Move the `teleport-event-handler` binary into your `PATH`.
   </TabItem>
 
   <TabItem label="macOS">
@@ -111,9 +113,9 @@ handler plugin on a Linux host or a Kubernetes cluster.
 <TabItem scope={["cloud"]} label="Linux Host">
 
 On the host where you are running the event handler plugin, execute the
-following command to generate a sample configuration. Replace
-`mytenant.teleport.sh` with the DNS name of your Teleport Proxy Service or
-Teleport Cloud tenant:
+following command to generate a sample configuration that we will edit later.
+Replace `mytenant.teleport.sh` with the DNS name of your Teleport Proxy Service
+or Teleport Cloud tenant:
 
 ```code
 $ teleport-event-handler configure . mytenant.teleport.sh
@@ -158,27 +160,27 @@ The `teleport-event-handler configure` command generates several setup files:
 
 ### Define RBAC resources
 
-The `configure` command generates a file called
+The `teleport-event-handler configure` command generates a file called
 `teleport-event-handler-role.yaml` that defines a `teleport-event-handler` role
 and a user with read-only access to the `event` API:
 
 ```yaml
-kind: user
-metadata:
-  name: teleport-event-handler
-spec:
-  roles: ['teleport-event-handler']
-version: v2
----
 kind: role
 metadata:
   name: teleport-event-handler
 spec:
   allow:
     rules:
-      - resources: ['event']
+      - resources: ['event', 'session']
         verbs: ['list','read']
 version: v5
+---
+kind: user
+metadata:
+  name: teleport-event-handler
+spec:
+  roles: ['teleport-event-handler']
+version: v2
 ```
 
 Use `tctl` to create the role and the user:
@@ -189,16 +191,26 @@ $ tctl create -f teleport-event-handler-role.yaml
 # role 'teleport-event-handler' has been created
 ```
 
+<Notice type="tip">
+
+If you receive an error using `tctl` on the host where you want to run the
+event-handler plugin, create the `teleport-event-handler-role.yaml` file on your
+workstation, then sign into your Teleport cluster and run the `tctl`
+command locally.
+
+</Notice>
+
 ### Enable impersonation of the event handler plugin user
 
-In order for the Fluentd plugin to forward events from your Teleport cluster, it
-needs a signed identity file from the cluster's certificate authority. The
-Fluentd user cannot request this itself, and requires another user to
-**impersonate** this account in order to request a certificate.
+In order for the event-handler plugin to forward events from your Teleport
+cluster, it needs a signed identity file from the cluster's certificate
+authority. The `teleport-event-handler`  user cannot request this itself, and
+requires another user to **impersonate** this account in order to request a
+certificate.
 
-Create a role that enables your user to impersonate the Fluentd user. First,
-paste the following YAML document into a file called
-`teleport-event-handler-impersonator.yaml`:
+Create a role that enables your user to impersonate the
+`teleport-event-handler` user. First, paste the following YAML document into a
+file called `teleport-event-handler-impersonator.yaml`:
 
 ```yaml
 kind: role
@@ -226,15 +238,15 @@ Next, create the role:
 $ tctl create teleport-event-handler-impersonator.yaml
 ```
 
-Assign this role to the current user by running the following command, substituting
-the user as appropriate:
+Assign this role to the current user by running the following commands:
 
 ```code
-$ tctl get users/<USER> > out.yaml
+$ TELEPORT_USER=$(tsh status -f json | jq -r '.active.username')
+$ tctl get users/${TELEPORT_USER?} > out.yaml
 ```
 
 Now edit `out.yaml`, adding `teleport-event-handler-impersonator` to the list of
-existing roles and update via `tctl` again:
+existing roles, and update via `tctl` again:
 
 ```
 $ tctl create -f out.yaml
@@ -248,7 +260,7 @@ Like all Teleport users, `teleport-event-handler` needs signed credentials in
 order to connect to your Teleport cluster. You will use the `tctl auth sign`
 command to request these credentials for your plugin. 
 
-<ScopedBlock scope={["enterprise"]}>
+<ScopedBlock scope={["enterprise", "oss"]}>
 
 The format of the credentials depends on whether you have set up your network to
 give the plugin direct access to the Teleport Auth Service, or if all Teleport
