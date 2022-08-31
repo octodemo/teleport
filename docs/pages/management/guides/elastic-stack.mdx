@@ -3,34 +3,44 @@ title: "Monitor Audit Events with the Elastic Stack"
 description: "How to configure Teleport's event handler plugin to send audit events to the Elastic Stack"
 ---
 
-The Elastic Stack, often called the ELK Stack (for Elasticsearch, Logstash, and
-Kibana) is a popular open source and managed solution for collecting and
-analyzing logs. In this guide, we will show you how to configure Teleport's
-event handler plugin to send your Teleport audit events to the Elastic Stack so
-you can get a better understanding of user activity in your Teleport cluster.
+In this guide, we will show you how to configure Teleport's event handler plugin
+to send your Teleport audit events to the Elastic Stack so you can get a better
+understanding of user activity in your Teleport cluster.
+
+The event handler plugin receives audit events from the Teleport Auth Service
+and forwards them to Logstash, which stores them in Elasticsearch for
+visualization and alerting in Kibana. 
 
 ## Prerequisites
 
 (!docs/pages//includes/commercial-prereqs-tabs.mdx!)
 
 - Either a Linux host or a Kubernetes cluster running Elasticsearch, Logstash,
-  and Kibana.
+  and Kibana. Logstash must be listening on a TCP port that is open to traffic
+  from the Teleport Auth Service. In this guide, you will also run the event
+  handler plugin on this host (or in this cluster).
 
 {/* TODO: Add version info for ELK*/}
 
-## Step 1/ . Install the event handler plugin
+## Step 1/ . Set up the event handler plugin
 
+The event handler plugin is a binary that runs independently of  your Teleport
+cluster. It authenticates to your Teleport cluster in order to establish a TLS
+connection with the Teleport Auth Service's gRPC endpoint, and uses that
+endpoint to listen for new audit events. It also authenticates to Logstash via
+mutual TLS {/* TODO: double-check the mTLS/Logstash stuff*/}.
 
 ### Install the event handler plugin
 
-The Teleport event handler runs alongside Logstash, receives events from
-Teleport's events API, and forwards them to Elasticsearch.
-
-On the host where you are running the Elastic stack, execute the following
-commands:
+The Teleport event handler receives events from Teleport's events API and
+forwards them to Logstash.
 
 <Tabs>
   <TabItem label="Linux">
+
+  On the host where you are running the Elastic stack, execute the following
+  commands:
+
   ```code
   $ curl -L -O https://get.gravitational.com/teleport-event-handler-v(=teleport.plugin.version=)-linux-amd64-bin.tar.gz
   $ tar -zxvf teleport-event-handler-v(=teleport.plugin.version=)-linux-amd64-bin.tar.gz
@@ -38,6 +48,9 @@ commands:
   </TabItem>
 
   <TabItem label="macOS">
+
+  On the host where you are running the Elastic stack, execute the following
+  commands:
 
   ```code
   $ curl -L -O https://get.gravitational.com/teleport-event-handler-v(=teleport.plugin.version=)-darwin-amd64-bin.tar.gz
@@ -51,6 +64,10 @@ commands:
   </TabItem>
 
   <TabItem label="Docker">
+
+  On the host where you are running the Elastic stack, execute the following
+  commands:
+
   ```code
   $ docker pull public.ecr.aws/gravitational/teleport-plugin-event-handler:(=teleport.plugin.version=)
   ```
@@ -62,9 +79,11 @@ commands:
   ```
   </TabItem>
   <TabItem label="From Source">
-  Ensure that you have Docker installed and running.
+  Ensure that you have Docker Engine or Docker Desktop installed.
 
-  Run the following commands to build the plugin:
+
+  On the host where you are running the Elastic stack, execute the following
+  commands to build the plugin:
 
   ```code
   $ git clone https://github.com/gravitational/teleport-plugins.git --depth 1
@@ -73,36 +92,35 @@ commands:
   ```
 
   You can find the compiled binary within your clone of the `teleport-plugins`
-  repo, with the file path, `event-handler/build/teleport-event-handler`.
+  repo, with the file path, `event-handler/build/teleport-event-handler`. Move
+  this into your `PATH`.
 
   </TabItem>
 </Tabs>
 
 ### Generate a starter config file
 
+Generate a configuration file with placeholder values for the Teleport event
+handler plugin. Later in this guide, we will edit the configuration file for
+your environment.
+
+The instructions you will follow depend on whether you are running the event
+handler plugin on a Linux host or a Kubernetes cluster.
+
 <Tabs>
-<TabItem scope={["cloud"]} label="Teleport Cloud">
+<TabItem scope={["cloud"]} label="Linux Host">
 
-Run the `configure` command to generate a sample configuration. Replace
-`mytenant.teleport.sh` with the DNS name of your Teleport Cloud tenant:
+On the host where you are running the event handler plugin, execute the
+following command to generate a sample configuration. Replace
+`mytenant.teleport.sh` with the DNS name of your Teleport Proxy Service or
+Teleport Cloud tenant:
 
 ```code
-$ ./teleport-event-handler configure . mytenant.teleport.sh
+$ teleport-event-handler configure . mytenant.teleport.sh
 ```
 
 </TabItem>
-<TabItem scope={["oss", "enterprise"]} label="Self-Hosted">
-
-Run the `configure` command to generate a sample configuration. Replace
-`teleport.example.com:443` with the DNS name and HTTPS port of Teleport's Proxy
-Service:
-
-```code
-$ ./teleport-event-handler configure . teleport.example.com:443
-```
-
-</TabItem>
-<TabItem scope={["oss", "enterprise", "cloud"]} label="Helm Chart">
+<TabItem label="Helm Chart">
 
 Run the `configure` command to generate a sample configuration. Assign
 `TELEPORT_CLUSTER_ADDRESS` to the DNS name and port of your Teleport Auth
@@ -131,9 +149,9 @@ The `teleport-event-handler configure` command generates several setup files:
 
 |File(s)|Purpose|
 |---|---|
-| `ca.crt` and `ca.key`| Self-signed CA certificate and private key for Fluentd|
-| `server.crt` and `server.key`| Fluentd server certificate and key|
-| `client.crt` and `client.key`| Fluentd client certificate and key, all signed by the generated CA|
+| `ca.crt` and `ca.key`| Self-signed CA certificate and private key for authenticating with Logstash|
+| `server.crt` and `server.key`| Logstash server certificate and key|
+| `client.crt` and `client.key`| Logstash client certificate and key, signed by the generated CA|
 | `teleport-event-handler-role.yaml`| `user` and `role` resource definitions for Teleport's event handler |client.
 | `fluent.conf`| Fluentd plugin configuration|
 

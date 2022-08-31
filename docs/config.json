@@ -444,7 +444,7 @@
             },
             {
               "title": "Fluentd",
-              "slug": "/management/guides/fluentd/"
+              "slug": "/management/guides/fluentd/",
               "forScopes": ["enterprise", "cloud"]
             },
             {
