@@ -81,7 +81,7 @@ forwards them to Logstash.
   ```
   </TabItem>
   <TabItem label="From Source">
-  Ensure that you have Docker Engine or Docker Desktop installed.
+  Ensure that you have Docker Desktop installed.
 
 
   On the host where you are running the Elastic stack, execute the following
@@ -195,8 +195,8 @@ $ tctl create -f teleport-event-handler-role.yaml
 
 If you receive an error using `tctl` on the host where you want to run the
 event-handler plugin, create the `teleport-event-handler-role.yaml` file on your
-workstation, then sign into your Teleport cluster and run the `tctl`
-command locally.
+workstation, then sign in to your Teleport cluster and run the `tctl` command
+locally.
 
 </Notice>
 
@@ -348,6 +348,69 @@ You will refer to this file later when configuring the plugin.
 
 </Admonition>
 
+## Step 2/ . Configure a Logstash pipeline
+
+On the host or Kubernetes cluster where you are running Logstash, create a
+configuration file that defines a Logstash pipeline. This pipeline will receive
+logs from port `9601` and forward them to the locally running Elasticsearch
+instance. 
+
+<Tabs>
+<TabItem label="Linux Host">
+
+Create a file called `/etc/logstash/conf.d/teleport-audit.conf` with the
+following content:
+
+```ruby
+input {
+  tcp{
+    mode => "server"
+    port => 9601
+    ssl_enable =>  true
+    ssl_cert => "/home/server.crt"
+    ssl_key =>  "/home/server.key"
+    ssl_certificate_authorities => [
+      "/home/ca.crt"
+    ]
+  }
+}
+output {
+  elasticsearch {}
+}
+```
+
+Update`ssl_cert`, `ssl_key`, and `ssl_certificate_authorities` to the include
+the locations of the server certificate, server key, and certificate authority
+files you generated earlier by running the `teleport-event-handler configure`
+command. Logstash will authenticate client certificates against the CA file and
+present a signed certificate to the Teleport event-handler plugin.
+
+Ensure that Logstash can read the TLS credentials:
+
+```code
+$ chmod +r /home/server.crt /home/ca.crt /home/server.key
+```
+
+Restart Logstash:
+
+```code
+$ sudo systemctl restart logstash
+```
+
+Make sure the pipeline started successfully by running the following command to
+tail Logstash's logs:
+
+```code
+$ sudo journalctl -u logstash -f
+```
+
+{/* TODO: Indicate how to tell the pipeline started successfully*/}
+
+</TabItem>
+</Tabs>
+
+## Step 3/ . Run the event-handler plugin
+
 ### Fill in the configuration
 
 {/* TODO: Update the config with credentials you generated earlier*/}
@@ -356,9 +419,8 @@ You will refer to this file later when configuring the plugin.
 
 {/* TODO: Do this without systemd to save space*/}
 
-## Step 2/ . Configure a Logstash pipeline
 
-## Step 3/ . Create a data view
+## Step 3/ . Create a data view in Kibana
 
 {/* TODO: 
 Find some good audit event types to use in the data view
