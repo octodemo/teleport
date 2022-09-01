@@ -161,19 +161,15 @@ func NewPresetAuditorRole() types.Role {
 }
 
 func UpdateAuditorRoleRFD82(role types.Role) types.Role {
-	found := false
-	for _, rule := range role.GetRules(types.Allow) {
+	combined := append(role.GetRules(types.Allow), role.GetRules(types.Deny)...)
+	for _, rule := range combined {
 		if rule.Resources[0] == types.KindSessionTracker {
-			found = true
-			break
+			return role
 		}
 	}
 
-	if !found {
-		rules := role.GetRules(types.Allow)
-		rules = append(rules, types.NewRule(types.KindSessionTracker, RO()))
-		role.SetRules(types.Allow, rules)
-	}
-
+	rules := role.GetRules(types.Allow)
+	rules = append(rules, types.NewRule(types.KindSessionTracker, RO()))
+	role.SetRules(types.Allow, rules)
 	return role
 }
