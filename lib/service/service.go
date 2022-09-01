@@ -76,6 +76,7 @@ import (
 	"github.com/gravitational/teleport/lib/cloud/aws"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/events"
+	"github.com/gravitational/teleport/lib/events/azsessions"
 	"github.com/gravitational/teleport/lib/events/dynamoevents"
 	"github.com/gravitational/teleport/lib/events/filesessions"
 	"github.com/gravitational/teleport/lib/events/firestoreevents"
@@ -1289,6 +1290,12 @@ func initUploadHandler(ctx context.Context, auditConfig types.ClusterAuditConfig
 		}
 
 		handler, err := s3sessions.NewHandler(ctx, config)
+		if err != nil {
+			return nil, trace.Wrap(err)
+		}
+		return handler, nil
+	case teleport.SchemeAZBlob, teleport.SchemeAZBlobHTTP:
+		handler, err := azsessions.NewHandlerFromURL(ctx, uri)
 		if err != nil {
 			return nil, trace.Wrap(err)
 		}
