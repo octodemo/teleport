@@ -358,6 +358,20 @@ instance.
 <Tabs>
 <TabItem label="Linux Host">
 
+Create an Elasticsearch user that Logstash can use to authenticate its requests
+to the Elasticsearch API. The user must have access to the Elasticsearch API as
+well as the ability to create index templates. We are providing this access
+using the predefined roles `logstash_system` and `ingest_admin`:
+
+```code
+$ sudo /usr/share/elasticsearch/bin/elasticsearch-users \
+  useradd teleport \
+  --roles logstash_system,ingest_admin
+```
+
+The `elasticsearch-users` command will prompt your for a password to assign to
+the user. 
+
 Create a file called `/etc/logstash/conf.d/teleport-audit.conf` with the
 following content:
 
@@ -372,18 +386,35 @@ input {
     ssl_certificate_authorities => [
       "/home/ca.crt"
     ]
+    ssl_verify => true
+    ssl_key_passphrase => "PASSPHRASE"
   }
 }
 output {
-  elasticsearch {}
+  elasticsearch {
+    user => "teleport"
+    password => "ELASTICSEARCH_PASSPHRASE"
+  }
 }
 ```
 
-Update`ssl_cert`, `ssl_key`, and `ssl_certificate_authorities` to the include
-the locations of the server certificate, server key, and certificate authority
-files you generated earlier by running the `teleport-event-handler configure`
-command. Logstash will authenticate client certificates against the CA file and
-present a signed certificate to the Teleport event-handler plugin.
+Update`ssl_cert`, `ssl_key`, and `ssl_certificate_authorities` to include the
+locations of the server certificate, server key, and certificate authority files
+that the `teleport-event-handler configure` command generated earlier. Logstash
+will authenticate client certificates against the CA file and present a signed
+certificate to the Teleport event-handler plugin.
+
+To get the value of `ssl_key_passphrase`, execute the following command on the
+host where you ran `teleport-event-handler configure` earlier. We will use the
+passphrase added to the `fluent.conf` file to decrypt the private TLS key:
+
+```code
+$ cat fluent.conf | grep passphrase
+private_key_passphrase "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+```
+
+In your Logstash pipeline configuration, use the password you assigned your
+`teleport` user for `ELASTICSEARCH_PASSPHRASE`.
 
 Ensure that Logstash can read the TLS credentials:
 
@@ -397,15 +428,48 @@ Restart Logstash:
 $ sudo systemctl restart logstash
 ```
 
-Make sure the pipeline started successfully by running the following command to
-tail Logstash's logs:
+Make sure your Logstash pipeline started successfully by running the following
+command to tail Logstash's logs:
 
 ```code
 $ sudo journalctl -u logstash -f
 ```
 
-{/* TODO: Indicate how to tell the pipeline started successfully*/}
+The resulting logs should resemble the following:
 
+```
+Sep 02 18:06:55 ip-172-37-51-68 logstash[47234]: [2022-09-02T18:06:55,742][INFO
+668 ][logstash.outputs.elasticsearch][main] Installing Elasticsearch template
+669 {:name=>"ecs-logstash"}
+670 Sep 02 18:06:56 ip-172-37-51-68 logstash[47234]:
+[2022-09-02T18:06:56,778][INFO
+671 ][logstash.javapipeline    ][main] Pipeline Java execution initialization
+time
+672 {"seconds"=>1.08}
+673 Sep 02 18:06:57 ip-172-37-51-68 logstash[47234]:
+[2022-09-02T18:06:57,235][INFO
+674 ][logstash.javapipeline    ][main] Pipeline started {"pipeline.id"=>"main"}
+675 Sep 02 18:06:57 ip-172-37-51-68 logstash[47234]:
+[2022-09-02T18:06:57,259][INFO
+676 ][logstash.inputs.tcp
+677 ][main][e7882833ddffc07c23ca7b124267c666133e437230eedce5ed0b25ab454f6aaa]
+678 Starting tcp input listener {:address=>"0.0.0.0:9601", :ssl_enable=>true}
+```
+
+<Admonition title="Elasticsearch SSL configuration">
+
+These instructions assume that you have already configured Elasticsearch and
+Logstash to communicate via TLS. 
+
+If your deployment is in a sandboxed or low-security environment (e.g., a demo
+environment), and your `journalctl` logs for Logstash show that Elasticsearch is
+unreachable, you can disable TLS for communication between Logstash and
+Elasticsearch.
+
+Edit the file `/etc/elasticsearch/elasticsearch.yaml` to set
+`xpack.security.http.ssl.enabled` to `false`, then restart Elasticsearch.
+
+</Admonition>
 </TabItem>
 </Tabs>
 
