@@ -38,10 +38,10 @@ func TestUnmarshal(t *testing.T) {
   "client_secret": "bbb",
   "display": "Github",
   "redirect_url": "https://localhost:3080/v1/webapi/github/callback",
-  "teams_to_logins": [{
+  "teams_to_roles": [{
     "organization": "gravitational",
     "team": "admins",
-    "logins": ["admin"]
+    "roles": ["admin"]
   }]
 }}`)
 	connector, err := UnmarshalGithubConnector(data)
@@ -86,31 +86,24 @@ func TestMapClaims(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	roles, kubeGroups, kubeUsers := connector.MapClaims(types.GithubClaims{
+	roles := connector.MapClaims(types.GithubClaims{
 		OrganizationToTeams: map[string][]string{
 			"gravitational": {"admins"},
 		},
 	})
 	require.Empty(t, cmp.Diff(roles, []string{"system"}))
-	require.Empty(t, kubeGroups)
-	require.Empty(t, kubeUsers)
 
-	roles, kubeGroups, kubeUsers = connector.MapClaims(types.GithubClaims{
+	roles = connector.MapClaims(types.GithubClaims{
 		OrganizationToTeams: map[string][]string{
 			"gravitational": {"devs"},
 		},
 	})
-
 	require.Empty(t, cmp.Diff(roles, []string{"dev"}))
-	require.Empty(t, kubeGroups)
-	require.Empty(t, kubeUsers)
 
-	roles, kubeGroups, kubeUsers = connector.MapClaims(types.GithubClaims{
+	roles = connector.MapClaims(types.GithubClaims{
 		OrganizationToTeams: map[string][]string{
 			"gravitational": {"admins", "devs"},
 		},
 	})
 	require.Empty(t, cmp.Diff(roles, []string{"system", "dev"}))
-	require.Empty(t, kubeGroups)
-	require.Empty(t, kubeUsers)
 }

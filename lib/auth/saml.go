@@ -529,8 +529,6 @@ func (a *Server) validateSAMLResponse(ctx context.Context, diagCtx *ssoDiagConte
 	diagCtx.info.CreateUserParams = &types.CreateUserParams{
 		ConnectorName: params.connectorName,
 		Username:      params.username,
-		KubeGroups:    params.kubeGroups,
-		KubeUsers:     params.kubeUsers,
 		Roles:         params.roles,
 		Traits:        params.traits,
 		SessionTTL:    types.Duration(params.sessionTTL),

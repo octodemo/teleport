@@ -48,8 +48,8 @@ type GithubConnector interface {
 	GetTeamsToRoles() []TeamRolesMapping
 	// SetTeamsToRoles sets the mapping of Github teams to allowed roles
 	SetTeamsToRoles([]TeamRolesMapping)
-	// MapClaims returns the list of allows roles based on the retrieved claims
-	MapClaims(GithubClaims) (roles []string, kubeGroups []string, kubeUsers []string)
+	// MapClaims returns the list of roles based on the retrieved claims
+	MapClaims(GithubClaims) []string
 	// GetDisplay returns the connector display name
 	GetDisplay() string
 	// SetDisplay sets the connector display name
@@ -218,7 +218,9 @@ func (c *GithubConnectorV3) SetDisplay(display string) {
 }
 
 // MapClaims returns a list of roles based on the provided claims.
-func (c *GithubConnectorV3) MapClaims(claims GithubClaims) (roles []string, deprecatedKubeGroups []string, deprecatedKubeUsers []string) {
+func (c *GithubConnectorV3) MapClaims(claims GithubClaims) []string {
+	var roles []string
+
 	for _, mapping := range c.GetTeamsToRoles() {
 		teams, ok := claims.OrganizationToTeams[mapping.Organization]
 		if !ok {
@@ -232,7 +234,7 @@ func (c *GithubConnectorV3) MapClaims(claims GithubClaims) (roles []string, depr
 			}
 		}
 	}
-	return utils.Deduplicate(roles), nil, nil
+	return utils.Deduplicate(roles)
 }
 
 // SetExpiry sets expiry time for the object

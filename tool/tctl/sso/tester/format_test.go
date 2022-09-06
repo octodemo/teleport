@@ -180,8 +180,6 @@ func Test_formatUserDetails(t *testing.T) {
 				ConnectorName: "foo",
 				Username:      "bar",
 				Logins:        []string{"laa", "lbb", "lcc"},
-				KubeGroups:    []string{"kgaa", "kgbb", "kgcc"},
-				KubeUsers:     []string{"kuaa", "kubb", "kucc"},
 				Roles:         []string{"raa", "rbb", "rcc"},
 				Traits: map[string][]string{
 					"groups": {"gfoo", "gbar", "gbaz"},
@@ -189,14 +187,6 @@ func Test_formatUserDetails(t *testing.T) {
 				SessionTTL: 1230,
 			},
 			want: `user details:
-   kube_groups:
-   - kgaa
-   - kgbb
-   - kgcc
-   kube_users:
-   - kuaa
-   - kubb
-   - kucc
    logins:
    - laa
    - lbb

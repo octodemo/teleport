@@ -3441,10 +3441,10 @@ message CreateUserParams {
   string Username = 2 [(gogoproto.jsontag) = "username,omitempty"];
   // Logins is a list of available unix logins.
   repeated string Logins = 3 [(gogoproto.jsontag) = "logins,omitempty"];
-  // KubeGroups is a list of assigned kube groups.
-  repeated string KubeGroups = 4 [(gogoproto.jsontag) = "kube_groups,omitempty"];
-  // KubeUsers is a list of available kube users.
-  repeated string KubeUsers = 5 [(gogoproto.jsontag) = "kube_users,omitempty"];
+
+  reserved 4; // repeated string KubeGroups
+  reserved 5; // repeated string KubeUsers
+
   // Roles is a list of assigned roles.
   repeated string Roles = 6 [(gogoproto.jsontag) = "roles,omitempty"];
 

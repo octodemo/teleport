@@ -316,8 +316,6 @@ func TestSSODiagnostic(t *testing.T) {
 					ConnectorName: "-sso-test-okta",
 					Username:      "superuser@example.com",
 					Logins:        nil,
-					KubeGroups:    nil,
-					KubeUsers:     nil,
 					Roles:         []string{"access"},
 					Traits: map[string][]string{
 						"email":  {"superuser@example.com"},

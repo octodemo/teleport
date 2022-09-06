@@ -28,7 +28,6 @@ import (
 	"github.com/gravitational/teleport/api/defaults"
 	"github.com/gravitational/teleport/api/types"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-cmp/cmp"
 	"github.com/gravitational/trace"
 	"github.com/gravitational/trace/trail"
@@ -632,54 +631,6 @@ func TestGetResources(t *testing.T) {
 			require.Empty(t, cmp.Diff(expectedResources, resources))
 		})
 	}
-}
-
-type mockOIDCConnectorServer struct {
-	*mockServer
-	connectors map[string]*types.OIDCConnectorV3
-}
-
-func newMockOIDCConnectorServer() *mockOIDCConnectorServer {
-	m := &mockOIDCConnectorServer{
-		&mockServer{
-			grpc:                           grpc.NewServer(),
-			UnimplementedAuthServiceServer: &proto.UnimplementedAuthServiceServer{},
-		},
-		make(map[string]*types.OIDCConnectorV3),
-	}
-	proto.RegisterAuthServiceServer(m.grpc, m)
-	return m
-}
-
-func startMockOIDCConnectorServer(t *testing.T) string {
-	l, err := net.Listen("tcp", "")
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, l.Close()) })
-	go newMockOIDCConnectorServer().grpc.Serve(l)
-	return l.Addr().String()
-}
-
-func (m *mockOIDCConnectorServer) GetOIDCConnector(ctx context.Context, req *types.ResourceWithSecretsRequest) (*types.OIDCConnectorV3, error) {
-	conn, ok := m.connectors[req.Name]
-	if !ok {
-		return nil, trace.NotFound("not found")
-	}
-	return conn, nil
-}
-
-func (m *mockOIDCConnectorServer) GetOIDCConnectors(ctx context.Context, req *types.ResourcesWithSecretsRequest) (*types.OIDCConnectorV3List, error) {
-	var connectors []*types.OIDCConnectorV3
-	for _, conn := range m.connectors {
-		connectors = append(connectors, conn)
-	}
-	return &types.OIDCConnectorV3List{
-		OIDCConnectors: connectors,
-	}, nil
-}
-
-func (m *mockOIDCConnectorServer) UpsertOIDCConnector(ctx context.Context, oidcConnector *types.OIDCConnectorV3) (*empty.Empty, error) {
-	m.connectors[oidcConnector.Metadata.Name] = oidcConnector
-	return &empty.Empty{}, nil
 }
 
 type mockAccessRequestServer struct {

@@ -347,8 +347,6 @@ func (a *Server) validateGithubAuthCallback(ctx context.Context, diagCtx *ssoDia
 	diagCtx.info.CreateUserParams = &types.CreateUserParams{
 		ConnectorName: params.connectorName,
 		Username:      params.username,
-		KubeGroups:    params.kubeGroups,
-		KubeUsers:     params.kubeUsers,
 		Roles:         params.roles,
 		Traits:        params.traits,
 		SessionTTL:    types.Duration(params.sessionTTL),
@@ -426,14 +424,8 @@ type createUserParams struct {
 	// connectorName is the name of the connector for the identity provider.
 	connectorName string
 
-	// username is the Teleport user name .
+	// username is the Teleport user name.
 	username string
-
-	// kubeGroups is the list of Kubernetes groups this user belongs to.
-	kubeGroups []string
-
-	// kubeUsers is the list of Kubernetes users this user belongs to.
-	kubeUsers []string
 
 	// roles is the list of roles this user is assigned to.
 	roles []string
@@ -449,18 +441,17 @@ func (a *Server) calculateGithubUser(connector types.GithubConnector, claims *ty
 	p := createUserParams{
 		connectorName: connector.GetName(),
 		username:      claims.Username,
+		roles:         connector.MapClaims(*claims),
 	}
 
-	// Calculate logins, kubegroups, roles, and traits.
-	p.roles, p.kubeGroups, p.kubeUsers = connector.MapClaims(*claims)
 	if len(p.roles) == 0 {
 		return nil, trace.Wrap(ErrGithubNoTeams)
 	}
+
+	// Calculate logins and traits.
 	p.traits = map[string][]string{
-		constants.TraitLogins:     {p.username},
-		constants.TraitKubeGroups: p.kubeGroups,
-		constants.TraitKubeUsers:  p.kubeUsers,
-		teleport.TraitTeams:       claims.Teams,
+		constants.TraitLogins: {p.username},
+		teleport.TraitTeams:   claims.Teams,
 	}
 
 	// Pick smaller for role: session TTL from role or requested TTL.
