@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 
@@ -507,8 +508,11 @@ func (h *Handler) ListUploads(ctx context.Context) ([]events.StreamUpload, error
 }
 
 func (h *Handler) GetUploadMetadata(sessionID session.ID) events.UploadMetadata {
+	url := h.c.ServiceURL
+	url.Path = path.Join(url.Path, sessionContainerName, sessionID.String())
+
 	return events.UploadMetadata{
-		URL:       h.c.ServiceURL.JoinPath(sessionContainerName, sessionID.String()).String(),
+		URL:       url.String(),
 		SessionID: sessionID,
 	}
 }
