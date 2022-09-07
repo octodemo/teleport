@@ -1475,6 +1475,7 @@ func applyWindowsDesktopConfig(fc *FileConfig, cfg *service.Config) error {
 		Username:           fc.WindowsDesktop.LDAP.Username,
 		Domain:             fc.WindowsDesktop.LDAP.Domain,
 		InsecureSkipVerify: fc.WindowsDesktop.LDAP.InsecureSkipVerify,
+		ServerName:         fc.WindowsDesktop.LDAP.ServerName,
 		CA:                 cert,
 	}
 
