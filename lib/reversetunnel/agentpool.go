@@ -464,7 +464,7 @@ func (p *AgentPool) newAgent(ctx context.Context, tracker *track.Tracker, lease 
 		return nil, trace.Wrap(err)
 	}
 
-	err = p.runtimeConfig.updateRemote(ctx, addr)
+	err = p.runtimeConfig.updateRemote(ctx, &addr)
 	if err != nil {
 		p.log.WithError(err).Debugf("Failed to update remote config.")
 	}
@@ -495,7 +495,7 @@ func (p *AgentPool) newAgent(ctx context.Context, tracker *track.Tracker, lease 
 	}
 
 	agent, err := newAgent(agentConfig{
-		addr:               *addr,
+		addr:               addr,
 		keepAlive:          p.runtimeConfig.keepAliveInterval,
 		sshDialer:          dialer,
 		transporter:        p,

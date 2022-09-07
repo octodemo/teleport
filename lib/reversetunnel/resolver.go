@@ -26,7 +26,7 @@ import (
 )
 
 // Resolver looks up reverse tunnel addresses
-type Resolver func(ctx context.Context) (*utils.NetAddr, error)
+type Resolver func(ctx context.Context) (utils.NetAddr, error)
 
 // CachingResolver wraps the provided Resolver with one that will cache the previous result
 // for 3 seconds to reduce the number of resolutions in an effort to mitigate potentially
@@ -40,21 +40,21 @@ func CachingResolver(ctx context.Context, resolver Resolver, clock clockwork.Clo
 	if err != nil {
 		return nil, err
 	}
-	return func(ctx context.Context) (*utils.NetAddr, error) {
+	return func(ctx context.Context) (utils.NetAddr, error) {
 		a, err := cache.Get(ctx, "resolver", func(ctx context.Context) (interface{}, error) {
 			return resolver(ctx)
 		})
 		if err != nil {
-			return nil, err
+			return utils.NetAddr{}, err
 		}
-		return a.(*utils.NetAddr), nil
+		return *a.(*utils.NetAddr), nil
 	}, nil
 }
 
 // WebClientResolver returns a Resolver which uses the web proxy to
 // discover where the SSH reverse tunnel server is running.
 func WebClientResolver(addrs []utils.NetAddr, insecureTLS bool) Resolver {
-	return func(ctx context.Context) (*utils.NetAddr, error) {
+	return func(ctx context.Context) (utils.NetAddr, error) {
 		var errs []error
 		for _, addr := range addrs {
 			// In insecure mode, any certificate is accepted. In secure mode the hosts
@@ -74,9 +74,9 @@ func WebClientResolver(addrs []utils.NetAddr, insecureTLS bool) Resolver {
 			}
 
 			addr.Addr = utils.ReplaceUnspecifiedHost(addr, defaults.HTTPListenPort)
-			return addr, nil
+			return *addr, nil
 		}
-		return nil, trace.NewAggregate(errs...)
+		return utils.NetAddr{}, trace.NewAggregate(errs...)
 	}
 }
 
@@ -88,7 +88,7 @@ func StaticResolver(address string) Resolver {
 		addr.Addr = utils.ReplaceUnspecifiedHost(addr, defaults.HTTPListenPort)
 	}
 
-	return func(context.Context) (*utils.NetAddr, error) {
-		return addr, err
+	return func(context.Context) (utils.NetAddr, error) {
+		return *addr, err
 	}
 }
