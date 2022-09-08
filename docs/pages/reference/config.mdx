@@ -128,6 +128,14 @@ teleport:
     # https://goteleport.com/docs/setup/reference/metrics/
     diag_addr: "127.0.0.1:3000"
 
+
+    # Only use one of auth_server or proxy_address.
+    #
+    # When you have either the application service or database service enabled,
+    # only tunneling through the proxy is supported, so you should specify proxy_address.
+    # All other services support both tunneling through the proxy and directly connecting
+    # to the auth server, so you can specify either auth_server or proxy_address.
+
     # Auth Server address and port to connect to. If you enable the Teleport
     # Auth Server to run in High Availability configuration, the address should
     # point to a Load Balancer.
