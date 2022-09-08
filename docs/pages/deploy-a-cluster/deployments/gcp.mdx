@@ -219,7 +219,7 @@ teleport:
   auth_token: EXAMPLE-NODE-JOIN-TOKEN
   # Nodes and other agents can be joined to the cluster via the proxy's public address.
   # This will establish a reverse tunnel between the proxy and the node which is used for all traffic.
-  proxy_address: [ "teleport.example.com:443" ]
+  proxy_address: teleport.example.com:443
 # enable ssh service and disable auth and proxy
 ssh_service:
   enabled: true
