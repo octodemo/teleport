@@ -42,7 +42,7 @@ run in a highly available fashion.
 
 ## Auth Server State
 
-To run multiple instances of Teleport Auth Server, you must switch to a High Availability secrets back-end first. Also, you must tell each node in a cluster that there is more than one auth server available.
+To run multiple instances of Teleport Auth Server, you must switch to a High Availability secrets back-end first.
 
 To do this, use a load balancer to create a single auth API access point (AP) and specify this AP in `auth_server` section of Teleport configuration for all nodes in a cluster. This load balancer should do TCP level forwarding.
 
