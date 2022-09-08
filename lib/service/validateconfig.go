@@ -99,6 +99,10 @@ func validateAuthOrProxyServices(cfg *Config) error {
 		if haveAuthServers && cfg.Apps.Enabled {
 			return trace.BadParameter("config: when app_service is enabled, proxy_address must be specified instead of auth_server")
 		}
+
+		if haveAuthServers && cfg.Databases.Enabled {
+			return trace.BadParameter("config: when db_service is enabled, proxy_address must be specified instead of auth_server")
+		}
 		return nil
 	}
 

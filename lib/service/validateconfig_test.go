@@ -93,6 +93,18 @@ func TestValidateConfig(t *testing.T) {
 			},
 			err: "config: when app_service is enabled, proxy_address must be specified instead of auth_server",
 		},
+		{
+			desc: "specifying auth_server when db_service is enabled",
+			config: &Config{
+				Version: defaults.TeleportConfigVersionV3,
+				Databases: DatabasesConfig{
+					Enabled: true,
+				},
+				DataDir:     "/",
+				authServers: []utils.NetAddr{*utils.MustParseAddr("0.0.0.0")},
+			},
+			err: "config: when db_service is enabled, proxy_address must be specified instead of auth_server",
+		},
 	}
 
 	for _, test := range tests {
