@@ -208,7 +208,7 @@ const (
 	// ImpersonateUserIdentifier is a user to impersonate
 	ImpersonateUserIdentifier = "impersonate_user"
 	// SessionTrackerIdentifier refers to a session tracker in the rules.
-	SessionTrackerIdentifier = "tracker"
+	SessionTrackerIdentifier = "session_tracker"
 )
 
 // GetResource returns resource specified in the context,
@@ -300,17 +300,17 @@ func toCtxTracker(t types.SessionTracker) ctxTracker {
 	}
 
 	return ctxTracker{
-		t.GetSessionID(),
-		t.GetKind(),
-		getParticipants(t),
-		string(t.GetState()),
-		t.GetHostname(),
-		t.GetAddress(),
-		t.GetLogin(),
-		t.GetClusterName(),
-		t.GetKubeCluster(),
-		t.GetHostUser(),
-		getHostRoles(t),
+		SessionID:    t.GetSessionID(),
+		Kind:         t.GetKind(),
+		Participants: getParticipants(t),
+		State:        string(t.GetState()),
+		Hostname:     t.GetHostname(),
+		Address:      t.GetAddress(),
+		Login:        t.GetLogin(),
+		Cluster:      t.GetClusterName(),
+		KubeCluster:  t.GetKubeCluster(),
+		HostUser:     t.GetHostUser(),
+		HostRoles:    getHostRoles(t),
 	}
 }
 
