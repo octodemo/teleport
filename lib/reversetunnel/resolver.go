@@ -47,7 +47,7 @@ func CachingResolver(ctx context.Context, resolver Resolver, clock clockwork.Clo
 		if err != nil {
 			return utils.NetAddr{}, err
 		}
-		return *a.(*utils.NetAddr), nil
+		return a.(utils.NetAddr), nil
 	}, nil
 }
 
@@ -88,6 +88,9 @@ func StaticResolver(address string) Resolver {
 		addr.Addr = utils.ReplaceUnspecifiedHost(addr, defaults.HTTPListenPort)
 	}
 
+	if addr == nil {
+		addr = &utils.NetAddr{}
+	}
 	return func(context.Context) (utils.NetAddr, error) {
 		return *addr, err
 	}
