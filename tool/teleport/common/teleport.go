@@ -113,9 +113,6 @@ func Run(options Options) (app *kingpin.Application, executedCommand string, con
 	start.Flag("auth-server",
 		fmt.Sprintf("Address of the auth server [%s]", defaults.AuthConnectAddr().Addr)).
 		StringsVar(&ccf.AuthServerAddr)
-	start.Flag("proxy-address",
-		"Address of the auth server [none]").
-		StringVar(&ccf.ProxyAddr)
 	start.Flag("token",
 		"Invitation token to register with an auth server [none]").
 		StringVar(&ccf.AuthToken)
@@ -186,7 +183,6 @@ func Run(options Options) (app *kingpin.Application, executedCommand string, con
 	appStartCmd.Flag("debug", "Enable verbose logging to stderr.").Short('d').BoolVar(&ccf.Debug)
 	appStartCmd.Flag("pid-file", "Full path to the PID file. By default no PID file will be created.").StringVar(&ccf.PIDFile)
 	appStartCmd.Flag("auth-server", fmt.Sprintf("Address of the auth server [%s].", defaults.AuthConnectAddr().Addr)).StringsVar(&ccf.AuthServerAddr)
-	appStartCmd.Flag("proxy-address", "Address of the proxy [none].").StringVar(&ccf.ProxyAddr)
 	appStartCmd.Flag("token", "Invitation token to register with an auth server [none].").StringVar(&ccf.AuthToken)
 	appStartCmd.Flag("ca-pin", "CA pin to validate the auth server (can be repeated for multiple pins).").StringsVar(&ccf.CAPins)
 	appStartCmd.Flag("config", fmt.Sprintf("Path to a configuration file [%v].", defaults.ConfigFilePath)).Short('c').ExistingFileVar(&ccf.ConfigFile)
@@ -207,7 +203,6 @@ func Run(options Options) (app *kingpin.Application, executedCommand string, con
 	dbStartCmd.Flag("debug", "Enable verbose logging to stderr.").Short('d').BoolVar(&ccf.Debug)
 	dbStartCmd.Flag("pid-file", "Full path to the PID file. By default no PID file will be created.").StringVar(&ccf.PIDFile)
 	dbStartCmd.Flag("auth-server", fmt.Sprintf("Address of the auth server [%s].", defaults.AuthConnectAddr().Addr)).StringsVar(&ccf.AuthServerAddr)
-	dbStartCmd.Flag("proxy-address", "Address of the proxy [none].").StringVar(&ccf.ProxyAddr)
 	dbStartCmd.Flag("token", "Invitation token to register with an auth server [none].").StringVar(&ccf.AuthToken)
 	dbStartCmd.Flag("ca-pin", "CA pin to validate the auth server (can be repeated for multiple pins).").StringsVar(&ccf.CAPins)
 	dbStartCmd.Flag("config", fmt.Sprintf("Path to a configuration file [%v].", defaults.ConfigFilePath)).Short('c').ExistingFileVar(&ccf.ConfigFile)

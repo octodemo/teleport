@@ -68,8 +68,6 @@ type CommandLineFlags struct {
 	NodeName string
 	// --auth-server flag
 	AuthServerAddr []string
-	// --proxy-address flag
-	ProxyAddr string
 	// --token flag
 	AuthToken string
 	// CAPins are the SKPI hashes of the CAs used to verify the Auth Server.
@@ -1957,20 +1955,6 @@ func Configure(clf *CommandLineFlags, cfg *service.Config) error {
 			}
 			cfg.SetAuthServerAddresses(append(cfg.AuthServerAddresses(), *addr))
 		}
-	}
-
-	if clf.ProxyAddr != "" {
-		if cfg.Auth.Enabled {
-			log.Warnf("not starting the local auth service. --proxy-address flag tells to connect to another auth server")
-			cfg.Auth.Enabled = false
-		}
-
-		addr, err := utils.ParseHostPortAddr(clf.ProxyAddr, defaults.AuthListenPort)
-		if err != nil {
-			return trace.BadParameter("cannot parse proxy address: '%v'", clf.ProxyAddr)
-		}
-
-		cfg.ProxyAddress = *addr
 	}
 
 	// apply --name flag:
