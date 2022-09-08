@@ -255,66 +255,8 @@ func ApplyFileConfig(fc *FileConfig, cfg *service.Config) error {
 	}
 	cfg.PIDFile = fc.PIDFile
 
-	switch cfg.Version {
-	case defaults.TeleportConfigVersionV1, defaults.TeleportConfigVersionV2:
-		// config file has auth servers in there?
-		if len(fc.AuthServers) > 0 {
-			var parsedAddresses []utils.NetAddr
-
-			for _, as := range fc.AuthServers {
-				addr, err := utils.ParseHostPortAddr(as, defaults.AuthListenPort)
-				if err != nil {
-					return trace.Wrap(err)
-				}
-
-				if err != nil {
-					return trace.Errorf("cannot parse auth server address: '%v'", as)
-				}
-
-				parsedAddresses = append(parsedAddresses, *addr)
-			}
-
-			cfg.SetAuthServerAddresses(parsedAddresses)
-		}
-
-		if fc.AuthServer != "" {
-			return trace.BadParameter("auth_server is supported from config version v3 onwards")
-		}
-
-		if fc.ProxyAddress != "" {
-			return trace.BadParameter("proxy_address is supported from config version v3 onwards")
-		}
-
-	case defaults.TeleportConfigVersionV3:
-		if len(fc.AuthServers) > 0 {
-			return trace.BadParameter("auth_servers (string[]) has been changed to auth_server (string)")
-		}
-
-		if fc.AuthServer != "" {
-			addr, err := utils.ParseHostPortAddr(fc.AuthServer, defaults.AuthListenPort)
-			if err != nil {
-				return trace.Wrap(err)
-			}
-
-			if err != nil {
-				return trace.Errorf("cannot parse auth server address: '%v'", fc.AuthServer)
-			}
-
-			cfg.SetAuthServerAddresses([]utils.NetAddr{*addr})
-		}
-
-		if fc.ProxyAddress != "" {
-			addr, err := utils.ParseHostPortAddr(fc.ProxyAddress, defaults.HTTPListenPort)
-			if err != nil {
-				return trace.Wrap(err)
-			}
-
-			if err != nil {
-				return trace.Errorf("cannot parse proxy address: '%v'", fc.ProxyAddress)
-			}
-
-			cfg.ProxyAddress = *addr
-		}
+	if err := applyAuthOrProxyAddress(fc, cfg); err != nil {
+		return trace.Wrap(err)
 	}
 
 	if err := applyTokenConfig(fc, cfg); err != nil {
@@ -487,6 +429,72 @@ func ApplyFileConfig(fc *FileConfig, cfg *service.Config) error {
 	if fc.Tracing.Enabled() {
 		if err := applyTracingConfig(fc, cfg); err != nil {
 			return trace.Wrap(err)
+		}
+	}
+
+	return nil
+}
+
+func applyAuthOrProxyAddress(fc *FileConfig, cfg *service.Config) error {
+	switch cfg.Version {
+	case defaults.TeleportConfigVersionV1, defaults.TeleportConfigVersionV2:
+		// config file has auth servers in there?
+		if len(fc.AuthServers) > 0 {
+			var parsedAddresses []utils.NetAddr
+
+			for _, as := range fc.AuthServers {
+				addr, err := utils.ParseHostPortAddr(as, defaults.AuthListenPort)
+				if err != nil {
+					return trace.Wrap(err)
+				}
+
+				if err != nil {
+					return trace.Errorf("cannot parse auth server address: '%v'", as)
+				}
+
+				parsedAddresses = append(parsedAddresses, *addr)
+			}
+
+			cfg.SetAuthServerAddresses(parsedAddresses)
+		}
+
+		if fc.AuthServer != "" {
+			return trace.BadParameter("auth_server is supported from config version v3 onwards")
+		}
+
+		if fc.ProxyAddress != "" {
+			return trace.BadParameter("proxy_address is supported from config version v3 onwards")
+		}
+
+	case defaults.TeleportConfigVersionV3:
+		if len(fc.AuthServers) > 0 {
+			return trace.BadParameter("auth_servers (string[]) has been changed to auth_server (string)")
+		}
+
+		if fc.AuthServer != "" {
+			addr, err := utils.ParseHostPortAddr(fc.AuthServer, defaults.AuthListenPort)
+			if err != nil {
+				return trace.Wrap(err)
+			}
+
+			if err != nil {
+				return trace.Errorf("cannot parse auth server address: '%v'", fc.AuthServer)
+			}
+
+			cfg.SetAuthServerAddresses([]utils.NetAddr{*addr})
+		}
+
+		if fc.ProxyAddress != "" {
+			addr, err := utils.ParseHostPortAddr(fc.ProxyAddress, defaults.HTTPListenPort)
+			if err != nil {
+				return trace.Wrap(err)
+			}
+
+			if err != nil {
+				return trace.Errorf("cannot parse proxy address: '%v'", fc.ProxyAddress)
+			}
+
+			cfg.ProxyAddress = *addr
 		}
 	}
 
