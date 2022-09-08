@@ -570,7 +570,8 @@ type Global struct {
 	// v1, v2
 	AuthServers []string `yaml:"auth_servers,omitempty"`
 	// v3
-	AuthServer string `yaml:"auth_server,omitempty"`
+	AuthServer   string `yaml:"auth_server,omitempty"`
+	ProxyAddress string `yaml:"proxy_address,omitempty"`
 
 	Limits      ConnectionLimits `yaml:"connection_limits,omitempty"`
 	Logger      Log              `yaml:"log,omitempty"`
