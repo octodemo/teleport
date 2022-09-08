@@ -160,10 +160,12 @@ func NewPresetAuditorRole() types.Role {
 	return role
 }
 
+// UpdateAuditorRoleRFD82 applies the updates in RFD 82 in order to
+// ensure that the preset auditor role can view active sessions.
 func UpdateAuditorRoleRFD82(role types.Role) types.Role {
 	combined := append(role.GetRules(types.Allow), role.GetRules(types.Deny)...)
 	for _, rule := range combined {
-		if rule.Resources[0] == types.KindSessionTracker {
+		if len(rule.Resources) != 0 && rule.Resources[0] == types.KindSessionTracker {
 			return role
 		}
 	}
