@@ -16,6 +16,9 @@ on:
       - 'docs/**'
       - 'rfd/**'
   workflow_dispatch: 
+  
+env:
+  CODEQL_EXTRACTOR_GO_BUILD_TRACING: on
 
 jobs:
   analyze:
@@ -51,10 +54,11 @@ jobs:
         languages: ${{ matrix.language }}
         debug: true
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+    - name: Build
+      run: |
+        go build
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
       env:
-        CODEQL_EXTRACTOR_GO_MAX_GOROUTINES: 2
+        CODEQL_EXTRACTOR_GO_MAX_GOROUTINES: 16
