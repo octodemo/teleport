@@ -81,6 +81,18 @@ func TestValidateConfig(t *testing.T) {
 			},
 			err: "config: proxy_address is supported from config version v3 onwards",
 		},
+		{
+			desc: "specifying auth_server when app_service is enabled",
+			config: &Config{
+				Version: defaults.TeleportConfigVersionV3,
+				Apps: AppsConfig{
+					Enabled: true,
+				},
+				DataDir:     "/",
+				authServers: []utils.NetAddr{*utils.MustParseAddr("0.0.0.0")},
+			},
+			err: "config: when app_service is enabled, proxy_address must be specified instead of auth_server",
+		},
 	}
 
 	for _, test := range tests {
