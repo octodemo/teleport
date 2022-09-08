@@ -437,6 +437,8 @@ func ApplyFileConfig(fc *FileConfig, cfg *service.Config) error {
 
 func applyAuthOrProxyAddress(fc *FileConfig, cfg *service.Config) error {
 	switch cfg.Version {
+	// For config versions v1 and v2, the auth_servers field can point to an auth
+	// server or a proxy server
 	case defaults.TeleportConfigVersionV1, defaults.TeleportConfigVersionV2:
 		// config file has auth servers in there?
 		if len(fc.AuthServers) > 0 {
@@ -466,6 +468,7 @@ func applyAuthOrProxyAddress(fc *FileConfig, cfg *service.Config) error {
 			return trace.BadParameter("proxy_address is supported from config version v3 onwards")
 		}
 
+	// From v3 onwards, either auth_server or proxy_address should be set
 	case defaults.TeleportConfigVersionV3:
 		if len(fc.AuthServers) > 0 {
 			return trace.BadParameter("auth_servers (string[]) has been changed to auth_server (string)")
