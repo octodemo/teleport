@@ -419,7 +419,7 @@ teleport:
   nodename: ${NODENAME}
   auth_token: ${JOIN_TOKEN}
 ${CA_PINS_CONFIG}
-  auth_server: ${TARGET_HOSTNAME}:${TARGET_PORT}
+  proxy_address: ${TARGET_HOSTNAME}:${TARGET_PORT}
   log:
     output: stderr
     severity: INFO
@@ -444,7 +444,7 @@ install_teleport_node_config() {
       --token ${JOIN_TOKEN} \
       ${JOIN_METHOD_FLAG} \
       --ca-pin ${CA_PINS} \
-      --auth-server ${TARGET_HOSTNAME}:${TARGET_PORT} \
+      --proxy ${TARGET_HOSTNAME}:${TARGET_PORT} \
       "${LABELS_FLAG[@]}" \
       --output ${TELEPORT_CONFIG_PATH}
 }
