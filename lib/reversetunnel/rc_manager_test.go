@@ -33,8 +33,8 @@ func TestRemoteClusterTunnelManagerSync(t *testing.T) {
 	t.Parallel()
 
 	resolverFn := func(addr string) Resolver {
-		return func(context.Context) (*utils.NetAddr, error) {
-			return &utils.NetAddr{
+		return func(context.Context) (utils.NetAddr, error) {
+			return utils.NetAddr{
 				Addr:        addr,
 				AddrNetwork: "tcp",
 				Path:        "",

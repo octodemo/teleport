@@ -32,7 +32,7 @@ func TestStaticResolver(t *testing.T) {
 		name             string
 		address          string
 		errorAssertionFn require.ErrorAssertionFunc
-		expected         *utils.NetAddr
+		expected         utils.NetAddr
 	}{
 		{
 			name:             "invalid address yields error",
@@ -43,7 +43,7 @@ func TestStaticResolver(t *testing.T) {
 			name:             "valid address yields NetAddr",
 			address:          "localhost:80",
 			errorAssertionFn: require.NoError,
-			expected: &utils.NetAddr{
+			expected: utils.NetAddr{
 				Addr:        "localhost:80",
 				AddrNetwork: "tcp",
 				Path:        "",
@@ -73,7 +73,7 @@ func TestResolveViaWebClient(t *testing.T) {
 		addrs            []utils.NetAddr
 		address          string
 		errorAssertionFn require.ErrorAssertionFunc
-		expected         *utils.NetAddr
+		expected         utils.NetAddr
 	}{
 		{
 			name:             "no addrs yields no results",
@@ -96,7 +96,7 @@ func TestResolveViaWebClient(t *testing.T) {
 			addrs:            []utils.NetAddr{fakeAddr},
 			address:          "localhost:80",
 			errorAssertionFn: require.NoError,
-			expected: &utils.NetAddr{
+			expected: utils.NetAddr{
 				Addr:        "localhost:80",
 				AddrNetwork: "tcp",
 				Path:        "",
@@ -119,8 +119,8 @@ func TestResolveViaWebClient(t *testing.T) {
 }
 
 func TestCachingResolver(t *testing.T) {
-	randomResolver := func(context.Context) (*utils.NetAddr, error) {
-		return &utils.NetAddr{
+	randomResolver := func(context.Context) (utils.NetAddr, error) {
+		return utils.NetAddr{
 			Addr:        uuid.New().String(),
 			AddrNetwork: uuid.New().String(),
 			Path:        uuid.New().String(),

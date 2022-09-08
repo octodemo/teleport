@@ -78,8 +78,8 @@ func setupTestAgentPool(t *testing.T) (*AgentPool, *mockClient) {
 		HostUUID:     "test-uuid",
 		LocalCluster: "test-cluster",
 		Cluster:      "test-cluster",
-		Resolver: func(context.Context) (*utils.NetAddr, error) {
-			return &utils.NetAddr{}, nil
+		Resolver: func(context.Context) (utils.NetAddr, error) {
+			return utils.NetAddr{}, nil
 		},
 	})
 	require.NoError(t, err)
