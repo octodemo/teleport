@@ -85,8 +85,11 @@ func TestValidateConfig(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			if err := validateConfig(test.config); err != nil {
-				require.Equal(t, test.err, err.Error())
+			err := validateConfig(test.config)
+			if test.err == "" {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, test.err)
 			}
 		})
 	}
