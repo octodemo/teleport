@@ -84,28 +84,19 @@ func applyDefaults(cfg *Config) {
 }
 
 func validateAuthOrProxyServices(cfg *Config) error {
-	haveAuthServer := !cfg.AuthServer.IsEmpty()
-	haveAuthServers := len(cfg.AuthServers) > 0
+	haveAuthServers := len(cfg.authServers) > 0
 	haveProxyAddress := !cfg.ProxyAddress.IsEmpty()
 
 	if cfg.Version == defaults.TeleportConfigVersionV3 {
-		if haveAuthServers {
-			return trace.BadParameter("config: auth_servers (string[]) has been changed to auth_server (string)")
-		}
-
-		if haveAuthServer && haveProxyAddress {
+		if haveAuthServers && haveProxyAddress {
 			return trace.BadParameter("config: cannot use both auth_server and proxy_address")
 		}
 
-		if !haveAuthServer && !haveProxyAddress {
+		if !haveAuthServers && !haveProxyAddress {
 			return trace.BadParameter("config: auth_server or proxy_address is required")
 		}
 
 		return nil
-	}
-
-	if haveAuthServer {
-		return trace.BadParameter("config: auth_server is supported from config version v3 onwards")
 	}
 
 	if haveProxyAddress {
