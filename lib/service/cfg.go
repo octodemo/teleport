@@ -274,7 +274,7 @@ type Config struct {
 	// A proxy address would be specified separately, so this no longer contains both
 	// auth servers and proxies.
 	//
-	// In order to keep backwards compatability between v3 and v2/v1, this is now private
+	// In order to keep backwards compatibility between v3 and v2/v1, this is now private
 	// and the value is retrieved via AuthServerAddresses() and set via SetAuthServerAddresses()
 	// as we still need to keep multiple addresses and return them for older config versions.
 	authServers []utils.NetAddr
