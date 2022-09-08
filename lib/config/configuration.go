@@ -471,7 +471,7 @@ func applyAuthOrProxyAddress(fc *FileConfig, cfg *service.Config) error {
 	// From v3 onwards, either auth_server or proxy_address should be set
 	case defaults.TeleportConfigVersionV3:
 		if len(fc.AuthServers) > 0 {
-			return trace.BadParameter("auth_servers (string[]) has been changed to auth_server (string)")
+			return trace.BadParameter("config version v3 requires the use of auth_server or proxy_address")
 		}
 
 		if fc.AuthServer != "" {
