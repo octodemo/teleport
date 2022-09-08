@@ -233,7 +233,7 @@ func Run(options Options) (app *kingpin.Application, executedCommand string, con
 	dbConfigureCreate := dbConfigure.Command("create", "Creates a sample Database Service configuration.")
 	dbConfigureCreate.Flag("proxy", fmt.Sprintf("Teleport proxy address to connect to [%s].", defaults.ProxyWebListenAddr().Addr)).
 		Default(defaults.ProxyWebListenAddr().Addr).
-		StringsVar(&dbConfigCreateFlags.AuthServersAddr)
+		StringVar(&dbConfigCreateFlags.ProxyAddress)
 	dbConfigureCreate.Flag("token", "Invitation token to register with an auth server [none].").Default("/tmp/token").StringVar(&dbConfigCreateFlags.AuthToken)
 	dbConfigureCreate.Flag("rds-discovery", "List of AWS regions in which the agent will discover RDS/Aurora instances.").StringsVar(&dbConfigCreateFlags.RDSDiscoveryRegions)
 	dbConfigureCreate.Flag("redshift-discovery", "List of AWS regions in which the agent will discover Redshift instances.").StringsVar(&dbConfigCreateFlags.RedshiftDiscoveryRegions)

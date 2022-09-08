@@ -38,14 +38,12 @@ var databaseAgentConfigurationTemplate = template.Must(template.New("").Funcs(da
 # Teleport database agent configuration file.
 # Configuration reference: https://goteleport.com/docs/database-access/reference/configuration/
 #
+version: v3
 teleport:
   nodename: {{ .NodeName }}
   data_dir: {{ .DataDir }}
   auth_token: {{ .AuthToken }}
-  auth_servers:
-  {{- range .AuthServersAddr }}
-  - {{ . }}
-  {{- end }}
+  proxy_address: {{ .ProxyAddress }}
   {{- if .CAPins }}
   ca_pin:
   {{- range .CAPins }}
@@ -321,9 +319,9 @@ type DatabaseSampleFlags struct {
 	NodeName string
 	// DataDir `data_dir` configuration.
 	DataDir string
-	// ProxyServerAddr is a list of addresses of the auth servers placed on
+	// ProxyAddress is a list of addresses of the auth servers placed on
 	// the configuration.
-	AuthServersAddr []string
+	ProxyAddress string
 	// AuthToken auth server token.
 	AuthToken string
 	// CAPins are the SKPI hashes of the CAs used to verify the Auth Server.

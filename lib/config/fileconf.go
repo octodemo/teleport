@@ -156,6 +156,8 @@ type SampleFlags struct {
 	Roles string
 	// AuthServer is the address of the auth server
 	AuthServer string
+	// ProxyAddress is the address of the proxy
+	ProxyAddress string
 	// AppName is the name of the application to start
 	AppName string
 	// AppURI is the internal address of the application to proxy
@@ -216,6 +218,10 @@ func MakeSampleFileConfig(flags SampleFlags) (fc *FileConfig, err error) {
 
 	if flags.AuthServer != "" {
 		g.AuthServers = []string{flags.AuthServer}
+	}
+
+	if flags.ProxyAddress != "" {
+		g.ProxyAddress = flags.ProxyAddress
 	}
 
 	g.CAPin = strings.Split(flags.CAPin, ",")
