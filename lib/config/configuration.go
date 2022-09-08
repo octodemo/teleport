@@ -215,6 +215,9 @@ func ApplyFileConfig(fc *FileConfig, cfg *service.Config) error {
 	if fc == nil {
 		return nil
 	}
+
+	applyConfigVersion(fc, cfg)
+
 	// merge file-based config with defaults in 'cfg'
 	if fc.Auth.Disabled() {
 		cfg.Auth.Enabled = false
@@ -389,8 +392,6 @@ func ApplyFileConfig(fc *FileConfig, cfg *service.Config) error {
 			})
 		}
 	}
-
-	applyConfigVersion(fc, cfg)
 
 	// Apply configuration for "auth_service", "proxy_service", "ssh_service",
 	// and "app_service" if they are enabled.
