@@ -23,8 +23,8 @@ env:
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-latest
-    #runs-on: securingdev-premium-runner
+    #runs-on: ubuntu-latest
+    runs-on: securingdev-premium-runner
     permissions:
       actions: read
       contents: read
@@ -63,5 +63,5 @@ jobs:
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
-      env:
-        CODEQL_EXTRACTOR_GO_MAX_GOROUTINES: 16
+      #env:
+      #  CODEQL_EXTRACTOR_GO_MAX_GOROUTINES: 16
