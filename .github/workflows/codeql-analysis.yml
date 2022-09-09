@@ -17,8 +17,8 @@ on:
       - 'rfd/**'
   workflow_dispatch: 
   
-env:
-  CODEQL_EXTRACTOR_GO_BUILD_TRACING: on
+#env:
+#  CODEQL_EXTRACTOR_GO_BUILD_TRACING: on
 
 jobs:
   analyze:
@@ -57,11 +57,11 @@ jobs:
         languages: ${{ matrix.language }}
         debug: true
 
-    - name: Build
-      run: |
-        make full
+    #- name: Build
+    #  run: |
+    #    make full
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
-      env:
-        CODEQL_EXTRACTOR_GO_MAX_GOROUTINES: 16
+    #  env:
+    #    CODEQL_EXTRACTOR_GO_MAX_GOROUTINES: 16
